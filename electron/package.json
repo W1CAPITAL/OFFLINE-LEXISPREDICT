@@ -1,0 +1,14 @@
+{
+  "name": "lexis-desktop-shell",
+  "version": "6.0.0",
+  "private": true,
+  "main": "main.js",
+  "description": "Electron shell — carrega LexisPredict (mesma UI do Vercel)",
+  "scripts": {
+    "start": "electron .",
+    "start:fallback": "electron . --fallback"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0"
+  }
+}

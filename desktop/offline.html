@@ -3,1368 +3,526 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Lexis Offline v5.1.9</title>
+<title>Lexis Gabinete v6.0</title>
 <style>
-:root {
-  --bg: #0b1220;
-  --bg2: #111827;
-  --card: #151f32;
-  --border: rgba(148,163,184,.18);
-  --text: #e8eef9;
-  --muted: #94a3b8;
-  --accent: #38bdf8;
-  --accent2: #818cf8;
-  --ok: #34d399;
-  --warn: #fbbf24;
-  --danger: #f87171;
-  --side-w: 240px;
+:root{
+  --bg:#f1f5f9; --card:#ffffff; --elev:#f8fafc; --border:rgba(15,23,42,.1); --border2:rgba(15,23,42,.06);
+  --text:#0f172a; --muted:#64748b; --faint:#94a3b8;
+  --primary:#0f9d6f; --primary2:#0b7d58; --primary-soft:rgba(15,157,111,.12); --primary-txt:#065f46;
+  --vencido:#ef4444; --hoje:#3b82f6; --atencao:#f97316; --prazook:#10b981; --semprazo:#94a3b8; --arq:#64748b;
+  --crit:#dc2626;
+  --shadow:0 2px 8px rgba(15,23,42,.05),0 12px 32px rgba(15,23,42,.07);
+  --side-w:272px; --radius:1.25rem;
 }
-* { box-sizing: border-box; }
-body {
-  margin: 0; font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
-  background: radial-gradient(1200px 600px at 10% -10%, #1e293b 0%, var(--bg) 45%);
-  color: var(--text); min-height: 100vh;
+html.dark{
+  --bg:#0c0c0e; --card:#18181b; --elev:#1f1f24; --border:rgba(244,244,245,.1); --border2:rgba(244,244,245,.06);
+  --text:#f4f4f5; --muted:#a1a1aa; --faint:#71717a;
+  --primary:#16a375; --primary2:#0e8a61; --primary-soft:rgba(22,163,117,.16); --primary-txt:#6ee7b7;
+  --shadow:0 2px 8px rgba(0,0,0,.25),0 12px 32px rgba(0,0,0,.3);
 }
-.app { display: flex; min-height: 100vh; }
-.side {
-  width: var(--side-w); flex-shrink: 0; background: linear-gradient(180deg, #0f172a, #0b1220);
-  border-right: 1px solid var(--border); padding: 1rem .75rem; display: flex; flex-direction: column; gap: .2rem;
-}
-.brand b { display: block; font-size: 1rem; letter-spacing: .02em; }
-.brand span { font-size: .7rem; color: var(--accent); font-weight: 700; }
-.brand small { display: block; color: var(--muted); font-size: .65rem; margin-top: .2rem; }
-.nav-sec { font-size: .58rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: .85rem .4rem .25rem; font-weight: 700; }
-.nav {
-  text-align: left; background: transparent; border: 0; color: var(--text); padding: .55rem .7rem;
-  border-radius: .55rem; cursor: pointer; font-size: .8rem; font-weight: 600;
-}
-.nav:hover { background: rgba(56,189,248,.08); }
-.nav.active { background: linear-gradient(90deg, rgba(56,189,248,.2), rgba(129,140,248,.12)); color: #fff; }
-.side-foot { margin-top: auto; font-size: .62rem; color: var(--muted); padding: .75rem .4rem; line-height: 1.4; }
-.main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-.top {
-  display: flex; align-items: center; gap: .75rem; padding: .85rem 1.25rem;
-  border-bottom: 1px solid var(--border); background: rgba(15,23,42,.75); backdrop-filter: blur(8px);
-}
-.top h1 { margin: 0; font-size: 1.05rem; font-weight: 800; }
-.pill { font-size: .68rem; font-weight: 700; padding: .25rem .55rem; border-radius: 999px; background: rgba(56,189,248,.15); color: var(--accent); }
-.pill.ok { background: rgba(52,211,153,.15); color: var(--ok); }
-.content { padding: 1rem 1.25rem 2rem; overflow: auto; flex: 1; }
-.panel { display: none; }
-.panel.active { display: block; }
-.card {
-  background: var(--card); border: 1px solid var(--border); border-radius: 1rem;
-  padding: 1.1rem 1.2rem; margin-bottom: 1rem; box-shadow: 0 8px 30px rgba(0,0,0,.25);
-}
-.card h2 { margin: 0 0 .65rem; font-size: .95rem; font-weight: 800; }
-.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: .65rem; margin-bottom: 1rem; }
-.kpi {
-  background: linear-gradient(145deg, #1a2438, #121a2b); border: 1px solid var(--border);
-  border-radius: .85rem; padding: .85rem;
-}
-.kpi b { display: block; font-size: 1.35rem; font-weight: 800; }
-.kpi span { font-size: .68rem; color: var(--muted); font-weight: 600; text-transform: uppercase; }
-.btn {
-  border: 1px solid var(--border); background: #1e293b; color: var(--text);
-  border-radius: .55rem; padding: .45rem .75rem; font-size: .75rem; font-weight: 700; cursor: pointer;
-}
-.btn:hover { border-color: var(--accent); }
-.btn-primary { background: linear-gradient(135deg, #0ea5e9, #6366f1); border: 0; color: #fff; }
-.btn-ok { background: rgba(52,211,153,.15); border-color: rgba(52,211,153,.35); color: var(--ok); }
-.btn-danger { background: rgba(248,113,113,.12); border-color: rgba(248,113,113,.35); color: var(--danger); }
-.toolbar { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin: .5rem 0 .75rem; }
-input, select, textarea {
-  background: #0b1220; border: 1px solid var(--border); color: var(--text);
-  border-radius: .55rem; padding: .5rem .65rem; font-size: .8rem; width: 100%;
-}
-input:focus, select:focus, textarea:focus { outline: 2px solid rgba(56,189,248,.35); border-color: var(--accent); }
-table { width: 100%; border-collapse: collapse; font-size: .78rem; }
-th { text-align: left; color: var(--muted); font-size: .65rem; text-transform: uppercase; padding: .5rem; border-bottom: 1px solid var(--border); }
-td { padding: .55rem .5rem; border-bottom: 1px solid rgba(148,163,184,.08); vertical-align: top; }
-.badge { font-size: .62rem; font-weight: 800; padding: .15rem .4rem; border-radius: .35rem; }
-.b-venc { background: rgba(248,113,113,.2); color: var(--danger); }
-.b-hoje { background: rgba(251,191,36,.2); color: var(--warn); }
-.b-ok { background: rgba(52,211,153,.15); color: var(--ok); }
-.b-arq { background: rgba(148,163,184,.15); color: var(--muted); }
-.field { margin-bottom: .65rem; }
-.field label { display: block; font-size: .65rem; font-weight: 700; color: var(--muted); margin-bottom: .25rem; text-transform: uppercase; }
-.hint { font-size: .72rem; color: var(--muted); line-height: 1.45; margin: .35rem 0; }
-.mono {
-  font-family: ui-monospace, Consolas, monospace; font-size: .72rem; white-space: pre-wrap;
-  background: #0a0f1a; border: 1px solid var(--border); border-radius: .65rem; padding: .85rem; max-height: 48vh; overflow: auto;
-}
-.scan-card {
-  background: #0f172a; border: 1px solid var(--border); border-radius: .75rem; padding: .85rem; margin-bottom: .65rem;
-}
-.scan-card h3 { margin: 0 0 .4rem; font-size: .85rem; }
-.scan-card .meta { color: var(--muted); font-size: .72rem; margin-bottom: .35rem; }
-.toast {
-  position: fixed; bottom: 1.25rem; right: 1.25rem; background: #1e293b; border: 1px solid var(--accent);
-  color: #fff; padding: .65rem 1rem; border-radius: .65rem; opacity: 0; pointer-events: none; transition: .25s; z-index: 50;
-}
-.toast.show { opacity: 1; }
-.modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none; align-items: center; justify-content: center; z-index: 40; }
-.modal-bg.show { display: flex; }
-.modal { background: var(--card); border: 1px solid var(--border); border-radius: 1rem; padding: 1.1rem; width: min(420px, 100%); box-shadow: 0 20px 50px rgba(0,0,0,.5); }
-.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: .65rem; }
-@media (max-width: 900px) { .side { display: none; } .grid2 { grid-template-columns: 1fr; } }
-.empty { text-align: center; padding: 2rem; color: var(--muted); }
-.empty b { display: block; color: var(--text); margin-bottom: .35rem; }
-.row-actions { display: flex; gap: .3rem; flex-wrap: wrap; }
-.row-actions .btn { padding: .28rem .45rem; font-size: .58rem; }
-.version-pill { font-size: .62rem; color: var(--muted); }
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;font-family:Inter,'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text)}
+button,input,textarea,select{font:inherit;color:inherit}
+.app{display:flex;height:100vh;overflow:hidden}
+
+/* ---------- SIDEBAR ---------- */
+.side{width:var(--side-w);background:var(--card);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:.8rem .6rem;gap:.15rem;flex-shrink:0;transition:width .2s}
+.side.collapsed{width:60px}
+.brand{display:flex;align-items:center;gap:.6rem;padding:.4rem .5rem 1rem;border-bottom:1px solid var(--border2);margin-bottom:.6rem}
+.brand .logo{width:34px;height:34px;border-radius:.7rem;background:var(--primary);color:#06301f;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.brand .nm{font-size:1rem;font-weight:900;letter-spacing:-.01em;white-space:nowrap}
+.brand .tg{font-size:.62rem;color:var(--muted);font-weight:600;letter-spacing:.02em;white-space:nowrap}
+.nav-sec{font-size:9px;font-weight:800;letter-spacing:.10em;text-transform:uppercase;color:var(--muted);margin:.55rem .55rem .2rem;white-space:nowrap;overflow:hidden}
+.nav{display:flex;align-items:center;gap:.6rem;border:0;background:transparent;color:var(--muted);text-align:left;padding:.5rem .55rem;border-radius:.55rem;cursor:pointer;font-size:.78rem;font-weight:600;width:100%;white-space:nowrap;overflow:hidden}
+.nav svg{flex-shrink:0}
+.nav:hover{background:var(--elev);color:var(--text)}
+.nav.active{background:var(--primary-soft);color:var(--primary);font-weight:700}
+.side-foot{margin-top:auto;padding:.6rem .5rem .2rem;font-size:.62rem;color:var(--muted);border-top:1px solid var(--border2);white-space:nowrap;overflow:hidden}
+.side-foot .pill{margin-right:.2rem}
+
+/* ---------- MAIN ---------- */
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.top{display:flex;align-items:center;gap:.7rem;padding:.7rem 1rem;border-bottom:1px solid var(--border2);background:var(--bg);position:relative;z-index:5}
+.top .ttl h1{margin:0;font-size:.95rem;font-weight:800;letter-spacing:-.01em}
+.top .ttl small{font-size:.66rem;color:var(--muted);font-weight:600}
+.top .sp{flex:1}
+.content{flex:1;overflow:auto;padding:1rem 1.1rem 2rem}
+.panel{display:none;animation:lx-in .25s ease-out}
+.panel.active{display:block}
+@keyframes lx-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+.pill{display:inline-flex;align-items:center;gap:.3rem;font-size:.64rem;font-weight:700;padding:.22rem .55rem;border-radius:999px;background:var(--elev);border:1px solid var(--border);color:var(--muted);white-space:nowrap}
+.pill.ok{color:var(--prazook);border-color:rgba(16,185,129,.35)}
+.pill.warn{color:var(--atencao);border-color:rgba(249,115,22,.4)}
+.pill.err{color:var(--vencido);border-color:rgba(239,68,68,.4)}
+.pill.pri{color:var(--primary);border-color:rgba(15,157,111,.4)}
+
+/* ---------- CARDS / KPI ---------- */
+.card{background:var(--card);border:1px solid var(--border2);border-radius:var(--radius);padding:1rem;margin-bottom:.9rem;box-shadow:var(--shadow)}
+.card h2{margin:0 0 .7rem;font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.mic{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:.65rem;margin-bottom:.9rem}
+.kpi{background:var(--card);border:1px solid var(--border2);border-radius:1rem;padding:.75rem .85rem;box-shadow:var(--shadow)}
+.kpi .l{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:800}
+.kpi .v{font-size:1.55rem;font-weight:900;letter-spacing:-.02em;margin-top:.15rem;font-variant-numeric:tabular-nums;line-height:1}
+.kpi .s{font-size:.62rem;color:var(--faint);margin-top:.2rem;font-weight:600}
+.kpi.warn .v{color:var(--atencao)} .kpi.err .v{color:var(--vencido)} .kpi.ok .v{color:var(--prazook)} .kpi.pri .v{color:var(--primary)} .kpi.hoje .v{color:var(--hoje)} .kpi.rose .v{color:var(--crit)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:.9rem;align-items:start}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.9rem;align-items:start}
+@media(max-width:1100px){.grid2,.grid3{grid-template-columns:1fr}}
+
+/* ---------- BADGES / TABLE ---------- */
+.badge{display:inline-flex;align-items:center;gap:.25rem;padding:.18rem .5rem;border-radius:999px;font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.02em}
+.b-ven{background:rgba(239,68,68,.12);color:var(--vencido)}
+.b-hoje{background:rgba(59,130,246,.12);color:var(--hoje)}
+.b-aten{background:rgba(249,115,22,.12);color:var(--atencao)}
+.b-ok{background:rgba(16,185,129,.12);color:var(--prazook)}
+.b-sem{background:rgba(148,163,184,.14);color:var(--semprazo)}
+.b-arq{background:rgba(100,116,139,.14);color:var(--arq)}
+.b-crit{background:rgba(220,38,38,.16);color:var(--crit)}
+.b-pri{background:var(--primary-soft);color:var(--primary-txt)}
+.table-wrap{overflow:auto;border:1px solid var(--border2);border-radius:.7rem;max-height:58vh}
+table{width:100%;border-collapse:collapse;font-size:.76rem}
+th{position:sticky;top:0;background:var(--elev);text-align:left;padding:.5rem .6rem;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:800;border-bottom:1px solid var(--border2);z-index:2}
+td{padding:.48rem .6rem;border-bottom:1px solid var(--border2);vertical-align:top}
+tr:hover td{background:var(--primary-soft)}
+.tr-unread td{font-weight:600}
+.empty{text-align:center;padding:2rem;color:var(--muted)}
+.empty b{display:block;color:var(--text);margin-bottom:.3rem;font-size:.9rem}
+.mini{font-size:.62rem;color:var(--muted);line-height:1.4}
+.num{font-variant-numeric:tabular-nums;font-weight:700}
+
+/* ---------- FORMS / BUTTONS ---------- */
+.toolbar{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:.75rem;align-items:center}
+input,textarea,select{background:var(--elev);border:1px solid var(--border);color:var(--text);border-radius:.55rem;padding:.48rem .6rem;width:100%;font-size:.8rem}
+input:focus,textarea:focus,select:focus{outline:2px solid var(--primary-soft);border-color:var(--primary)}
+.btn{border:1px solid var(--border);background:var(--card);color:var(--text);padding:.42rem .8rem;border-radius:.55rem;font-size:.66rem;font-weight:800;text-transform:uppercase;letter-spacing:.03em;cursor:pointer;display:inline-flex;align-items:center;gap:.35rem}
+.btn:hover{filter:brightness(.96);border-color:var(--primary)}
+.btn:active{transform:scale(.98)}
+.btn-pri{background:var(--primary);color:#06301f;border-color:transparent}
+.btn-pri:hover{filter:brightness(1.06)}
+.btn-ghost{background:transparent}
+.btn-cta{box-shadow:10px 10px 0 var(--faint);transition:.15s}
+.btn-cta:hover{box-shadow:6px 6px 0 var(--faint);transform:translate(2px,2px)}
+.btn-sm{padding:.24rem .5rem;font-size:.6rem}
+label.lbl{display:block;font-size:.64rem;font-weight:700;color:var(--muted);margin-bottom:.3rem;text-transform:uppercase;letter-spacing:.04em}
+.field{margin-bottom:.7rem}
+.hint{font-size:.7rem;color:var(--muted);line-height:1.5;margin:.35rem 0}
+.mono{font-family:ui-monospace,'JetBrains Mono',Consolas,monospace;font-size:.72rem;white-space:pre-wrap;background:#0a0f0e;color:#d6eee4;border:1px solid var(--border);border-radius:.6rem;padding:.8rem;max-height:46vh;overflow:auto}
+.dark .mono{background:#0b0b0d;color:#d9d9de}
+
+/* ---------- SCANNER (padrão LexisEspecial) ---------- */
+.sc-sub{display:flex;gap:.35rem;margin-bottom:.9rem}
+.sc-tab{border:1px solid var(--border);background:var(--card);color:var(--muted);padding:.4rem .9rem;border-radius:.55rem;font-size:.64rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;cursor:pointer}
+.sc-tab:hover{color:var(--text)}
+.sc-tab.active{background:var(--primary);color:#06301f;border-color:transparent}
+.sc-radio{display:grid;gap:.4rem}
+.sc-radio label{display:flex;gap:.5rem;align-items:center;border:1px solid var(--border2);background:var(--elev);padding:.5rem .65rem;border-radius:.6rem;font-size:.74rem;font-weight:700;cursor:pointer}
+.sc-radio label:hover{border-color:var(--primary)}
+.sc-radio input{width:auto;flex-shrink:0}
+.sc-kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:.5rem;margin-top:.6rem}
+.sc-kpis .kpi{padding:.55rem .7rem}
+.sc-kpis .kpi .v{font-size:1.1rem}
+.sc-feed{display:grid;gap:.4rem;max-height:52vh;overflow:auto;padding:.4rem;border:1px solid var(--border2);border-radius:.6rem}
+.sc-log{display:flex;gap:.6rem;align-items:flex-start;background:var(--elev);border:1px solid var(--border2);border-bottom-width:2px;padding:.45rem .6rem;border-radius:.5rem}
+.sc-log-ic{width:20px;height:20px;border-radius:999px;background:var(--primary-soft);color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:.66rem;flex-shrink:0;font-weight:900}
+.sc-log-bd{flex:1;min-width:0;font-size:.7rem;line-height:1.35}
+.sc-log-bd b{display:block;font-size:.66rem;letter-spacing:.02em;text-transform:uppercase}
+.sc-log-bd span.badge{margin-right:.35rem}
+.sc-log-ms{font-size:.6rem;color:var(--faint);font-family:ui-monospace,Consolas,monospace;flex-shrink:0}
+.sc-brand{font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.14em;color:var(--primary);margin-bottom:.4rem}
+
+.row-actions{display:flex;gap:.3rem;flex-wrap:wrap}
+.row-actions .btn{padding:.24rem .45rem;font-size:.58rem}
+
+/* ---------- RISCO / SAUDE ---------- */
+.riskbox{display:flex;align-items:center;gap:1.2rem}
+.risknum{width:92px;height:92px;border-radius:999px;display:flex;align-items:center;justify-content:center;position:relative;font-size:1.5rem;font-weight:900;flex-shrink:0}
+.risknum .lbl{position:absolute;bottom:-1.4rem;left:0;right:0;text-align:center;font-size:.6rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.bar{height:10px;border-radius:999px;background:var(--elev);overflow:hidden;border:1px solid var(--border2)}
+.bar > div{height:100%;border-radius:999px}
+.legend{display:grid;gap:.3rem;font-size:.68rem}
+.legend div{display:flex;align-items:center;gap:.45rem}
+.dot{width:9px;height:9px;border-radius:3px;flex-shrink:0}
+
+/* ---------- MODAL / TOAST ---------- */
+.modal-bg{position:fixed;inset:0;background:rgba(15,23,42,.5);display:none;align-items:center;justify-content:center;z-index:50;padding:1rem}
+.modal-bg.show{display:flex}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:1.1rem;padding:1.2rem;width:min(520px,100%);box-shadow:0 20px 60px rgba(15,23,42,.35);max-height:90vh;overflow:auto}
+.modal h3{margin:0 0 .4rem;font-size:1rem;font-weight:800}
+.toast{position:fixed;bottom:1.2rem;right:1.2rem;background:#111c1a;color:#d9fff0;border:1px solid rgba(15,157,111,.5);padding:.65rem 1rem;border-radius:.6rem;font-size:.75rem;font-weight:600;z-index:99;opacity:0;transition:.25s;pointer-events:none;max-width:min(420px,90vw)}
+.toast.show{opacity:1}
+.ok-msg{color:var(--prazook)} .err-msg{color:var(--vencido)}
 </style>
 </head>
 <body>
 <div class="app">
-  <aside class="side">
+  <aside class="side" id="side">
     <div class="brand">
-      <b>W1 · Lexis</b>
-      <span>Offline v5.1.9 · MiniMax</span>
-      <small>Carteira · Tribunal · IA leve</small>
+      <div class="logo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></svg></div>
+      <div style="min-width:0">
+        <div class="nm">LexisPredict</div>
+        <div class="tg">Gabinete inteligente</div>
+      </div>
     </div>
-    <div class="nav-sec">Hoje</div>
-    <button type="button" class="nav active" data-nav="painel">Painel</button>
-    <button type="button" class="nav" data-nav="tarefas">Tarefas / Fila</button>
-    <button type="button" class="nav" data-nav="agenda">Agenda</button>
-    <div class="nav-sec">Carteira</div>
-    <button type="button" class="nav" data-nav="processos">Processos</button>
-    <button type="button" class="nav" data-nav="notas">Notas</button>
-    <div class="nav-sec">Tribunal</div>
-    <button type="button" class="nav" data-nav="scanner">Scanner DataJud+DJEN</button>
-    <button type="button" class="nav" data-nav="veredito">Veredito</button>
-    <button type="button" class="nav" data-nav="sugerir">Sugerir resposta</button>
-    <div class="nav-sec">Gestão</div>
-    <button type="button" class="nav" data-nav="report">Report / Dossiê</button>
-    <button type="button" class="nav" data-nav="planob">Plano B · Planilha</button>
-    <button type="button" class="nav" data-nav="ia">Assistente IA</button>
-    <button type="button" class="nav" data-nav="config">Config</button>
-    <div class="side-foot">Salvo neste PC<br>Ctrl+1 online · Ctrl+2 offline<br>© W1 Capital</div>
+    <div style="flex:1;min-height:0;overflow:auto" id="navArea">
+      <div class="nav-sec">Principal</div>
+      <button type="button" class="nav" data-nav="dashboard"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg><span>Painel da carteira</span></button>
+      <button type="button" class="nav" data-nav="fila"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6h6M15 12h6M15 18h6"/><path d="M5 3v18l-2-1.5L1 21V3a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v4"/></svg><span>Fila de atendimento</span></button>
+      <button type="button" class="nav" data-nav="casos"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><path d="M2 10h20"/></svg><span>Meus processos</span></button>
+      <button type="button" class="nav" data-nav="processos"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h2"/></svg><span>Processos da empresa</span></button>
+      <button type="button" class="nav" data-nav="parados"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9 9h6v6H9z"/></svg><span>Processos parados</span></button>
+      <button type="button" class="nav" data-nav="encerrados"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 9 9"/><circle cx="12" cy="12" r="1"/></svg><span>Encerrados a revisar</span></button>
+      <button type="button" class="nav" data-nav="import"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/></svg><span>Importar</span></button>
+      <div class="nav-sec">Ferramentas</div>
+      <button type="button" class="nav" data-nav="agenda"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg><span>Agenda</span></button>
+      <button type="button" class="nav" data-nav="dossie"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg><span>Dossiê operacional</span></button>
+      <button type="button" class="nav" data-nav="veredito"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M5 7H3M19 7h2M5 13H3M19 13h2M5 5l-2-2M19 5l2-2"/><path d="m12 3-4 6h8Z"/></svg><span>Veredito</span></button>
+      <button type="button" class="nav" data-nav="scanner"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 12h10"/></svg><span>Scanner DataJud+DJEN</span></button>
+      <button type="button" class="nav" data-nav="notas"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7Z"/><path d="M9 9h6M9 13h6M9 17h4"/></svg><span>Notas</span></button>
+      <div class="nav-sec">Sistema</div>
+      <button type="button" class="nav" data-nav="config"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg><span>Configurações</span></button>
+    </div>
+    <div class="side-foot">
+      <div style="display:flex;gap:.3rem;flex-wrap:wrap;margin-bottom:.35rem">
+        <span class="pill" id="connPill">local</span>
+        <span class="pill" id="capPill">0 proc.</span>
+      </div>
+      <span id="verTxt">Lexis Gabinete v6.0</span>
+      <button type="button" class="btn btn-sm" style="margin-top:.4rem" id="btnSidebar">‹ recolher</button>
+    </div>
   </aside>
+
   <div class="main">
     <header class="top">
-      <h1 id="pageTitle">Painel</h1>
-      <span class="pill ok" id="countPill">0 proc.</span>
-      <button type="button" class="btn" id="btnSaveDisk">Salvar no PC</button>
-      <button type="button" class="btn btn-primary" id="btnGotoImport">Importar</button>
+      <div class="ttl"><h1 id="pageTitle">Painel da carteira</h1><small id="pageSub">Visão geral</small></div>
+      <div class="sp"></div>
+      <span class="pill" id="syncPill">não sincronizado</span>
+      <button type="button" class="btn" id="btnSync" title="Sincronizar com a planilha (puxa atualizações e envia pendências)">Sincronizar</button>
+      <button type="button" class="btn btn-pri" id="btnSaveDisk">Salvar PC</button>
+      <button type="button" class="btn" id="btnTheme" title="Tema claro/escuro">&#9681;</button>
     </header>
-    <div class="content">
-      <!-- PAINEL -->
-      <section class="panel active" id="p-painel">
+    <div class="content" id="contentArea">
+
+      <section class="panel active" id="p-dashboard">
         <div class="kpis" id="kpiRow"></div>
+        <div class="grid2">
+          <div class="card">
+            <h2>Fila crítica (vencidos + hoje)</h2>
+            <div class="table-wrap" id="critTable"></div>
+          </div>
+          <div>
+            <div class="card">
+              <h2>Risco global</h2>
+              <div class="riskbox">
+                <div class="risknum" id="riskNum">—</div>
+                <div style="flex:1">
+                  <div id="riskBarWrap" style="margin-bottom:.8rem"></div>
+                  <div class="legend" id="riskLegend"></div>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <h2>Saúde da carteira</h2>
+              <div id="saudeBar"></div>
+              <div class="legend" id="saudeLeg" style="margin-top:.8rem"></div>
+            </div>
+            <div class="card">
+              <h2>Próximos prazos · 7 dias</h2>
+              <div class="table-wrap" style="max-height:34vh" id="agendaMini"></div>
+            </div>
+          </div>
+        </div>
         <div class="card">
-          <h2>Fila crítica (vencidos + hoje)</h2>
-          <div class="table-wrap" id="critTable"></div>
+          <h2>Novidades detectadas (andamento novo / DJEN)</h2>
+          <div class="table-wrap" id="novaTable"></div>
         </div>
       </section>
-      <!-- TAREFAS -->
-      <section class="panel" id="p-tarefas">
+
+      <section class="panel" id="p-fila">
         <div class="toolbar">
-          <input id="qTarefas" placeholder="Buscar cliente ou CNJ…" style="flex:1;min-width:180px"/>
-          <select id="filtroTarefas" style="width:auto">
-            <option value="trabalho" selected>Trabalho (ativos sem arquivar)</option>
-            <option value="semprazo">Sem prazo de retorno</option>
-            <option value="fila">Fila (vencido + hoje)</option>
+          <input id="qFila" placeholder="Buscar cliente, CNJ, telefone…" style="flex:1;min-width:180px"/>
+          <select id="filtroFila" style="width:auto">
+            <option value="fila">Fila crítica (vencido + hoje)</option>
             <option value="vencido">Só vencidos</option>
             <option value="hoje">É hoje</option>
-            <option value="pendente">No prazo</option>
-            <option value="todos">Todos</option>
+            <option value="atencao">Atenção (≤3 dias)</option>
+            <option value="prioridade">Todas por prioridade</option>
+            <option value="ativos">Todos ativos</option>
           </select>
         </div>
-        <div class="table-wrap" id="tarefasTable"></div>
+        <div class="kpis" id="filaKpis"></div>
+        <div class="table-wrap" id="filaTable"></div>
       </section>
-      <!-- AGENDA -->
-      <section class="panel" id="p-agenda">
-        <div class="hint">Retornos da semana (próximo retorno). Clique Atender para remarcar.</div>
-        <div class="kpis" id="agendaKpis"></div>
-        <div class="table-wrap" id="agendaTable"></div>
-      </section>
-      <!-- PROCESSOS -->
-      <section class="panel" id="p-processos">
+
+      <section class="panel" id="p-casos">
         <div class="toolbar">
-          <input id="qProc" placeholder="Buscar…" style="flex:1;min-width:180px"/>
-          <select id="filtroProc" style="width:auto">
+          <input id="qCasos" placeholder="Buscar…" style="flex:1;min-width:180px"/>
+          <select id="filtroCasos" style="width:auto">
             <option value="ativos">Ativos</option>
             <option value="todos">Todos</option>
-            <option value="arq">Arquivados</option>
             <option value="vencido">Vencidos</option>
+            <option value="hoje">É hoje</option>
+            <option value="arq">Arquivados</option>
+            <option value="sem">Sem prazo</option>
           </select>
           <button type="button" class="btn" id="btnExportCsv">Exportar CSV</button>
         </div>
-        <div class="table-wrap" id="procTable"></div>
+        <div class="table-wrap" id="casosTable"></div>
       </section>
-      <!-- NOTAS -->
-      <section class="panel" id="p-notas">
-        <div class="card">
-          <h2>Nova nota</h2>
-          <div class="field"><label>Cliente / CNJ</label><input id="notaRef" placeholder="Nome ou protocolo"/></div>
-          <div class="field"><label>Texto</label><textarea id="notaTxt" rows="3"></textarea></div>
-          <button type="button" class="btn btn-primary" id="btnNota">Salvar nota</button>
-        </div>
-        <div class="card"><h2>Notas salvas</h2><div id="notasList" class="hint">Nenhuma nota ainda.</div></div>
-      </section>
-      <!-- SCANNER -->
-      <section class="panel" id="p-scanner">
-        <div class="card">
-          <h2>Scanner DataJud + DJEN · port LexisPredict</h2>
-          <p class="hint">Consulta tribunal + diário. Aplica <b>último retorno</b> e <b>próximo prazo</b> na carteira local. DataJud pode vir vazio em processo novo — DJEN costuma ter o despacho.</p>
-          <div class="toolbar">
-            <input id="scanCnj" placeholder="CNJ completo (20 dígitos)" style="flex:1"/>
-            <button type="button" class="btn btn-primary" id="btnScanOne">Consultar 1</button>
-            <button type="button" class="btn btn-ok" id="btnScanApply">Aplicar na carteira</button>
-            <button type="button" class="btn" id="btnScanEnqueue">Enfileirar CNJ</button>
-            <button type="button" class="btn" id="btnScanProcessQueue">Processar fila pendente</button>
-            <button type="button" class="btn" id="btnScanBatch">Fila completa (agora)</button>
+
+      <section class="panel" id="p-processos">
+        <div class="kpis" id="empKpis"></div>
+        <div class="grid2">
+          <div class="card">
+            <h2>Processos (todas as carteiras)</h2>
+            <div class="table-wrap" id="empTable"></div>
           </div>
-          <p class="hint" id="scanQueueStatus">Fila de scan vazia.</p>
-          <div id="scanView"></div>
-          <details style="margin-top:.5rem"><summary class="hint">JSON bruto</summary>
-            <div class="mono" id="scanOut">Aguardando…</div>
-          </details>
+          <div class="card">
+            <h2>Ranking de atendimento (semana)</h2>
+            <div id="rankBox" class="hint">Carregando…</div>
+          </div>
         </div>
       </section>
-      <!-- VEREDITO -->
+
+      <section class="panel" id="p-parados">
+        <div class="kpis" id="parKpis"></div>
+        <div class="card">
+          <h2>Sem andamento ≥ 60 dias</h2>
+          <div class="table-wrap" id="paradosTable"></div>
+        </div>
+      </section>
+
+      <section class="panel" id="p-encerrados">
+        <div class="hint">Casos com situação forte de encerramento — revisão humana. Confirme ou desfaça.</div>
+        <div class="kpis" id="encKpis"></div>
+        <div class="table-wrap" id="encerTable"></div>
+      </section>
+
+      <section class="panel" id="p-agenda">
+        <div class="hint">Próximo retorno dos próximos 7 dias. Clique em Atender para remarcar (a alteração volta para a planilha).</div>
+        <div class="kpis" id="agKpis"></div>
+        <div class="table-wrap" id="agendaTable"></div>
+      </section>
+
+      <section class="panel" id="p-import">
+        <div class="card">
+          <h2>1 · Google Sheets (fonte da carteira)</h2>
+          <p class="hint">Arquivo → Compartilhar → "Qualquer pessoa com o link". O desktop lê a aba com a coluna Protocolo e grava de volta via webhook (Configurações).</p>
+          <div class="field"><label class="lbl">URL da planilha</label>
+            <input type="url" id="sheetsUrl" placeholder="https://docs.google.com/spreadsheets/d/XXXX/edit?gid=0"/>
+          </div>
+          <div class="toolbar">
+            <button type="button" class="btn btn-pri" id="btnSheets">Carregar planilha</button>
+            <span class="pill" id="sheetsStatus">ocioso</span>
+          </div>
+        </div>
+        <div class="grid2">
+          <div class="card">
+            <h2>2 · Colar CSV</h2>
+            <textarea id="csvPaste" rows="5" placeholder="Cole linhas CSV aqui…"></textarea>
+            <button type="button" class="btn btn-pri" id="btnPaste" style="margin-top:.5rem">Importar colado</button>
+          </div>
+          <div class="card">
+            <h2>3 · Arquivo local</h2>
+            <input type="file" id="fileCsv" accept=".csv,text/csv,text/plain,.xlsx"/>
+            <p class="hint" style="margin-top:.5rem">CSV do Excel exportado da própria planilha.</p>
+          </div>
+        </div>
+        <div class="card">
+          <h2>4 · Local / exportar</h2>
+          <div class="toolbar">
+            <button type="button" class="btn" id="btnSaveDisk2">Salvar no PC</button>
+            <button type="button" class="btn" id="btnLoadDisk">Recarregar do PC</button>
+            <button type="button" class="btn" id="btnOpenCsvFolder">Exportar CSV editável</button>
+            <button type="button" class="btn" id="btnClear" style="color:var(--vencido)">Limpar carteira</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="p-scanner">
+        <p class="sc-brand">Scanner Omnipresente · v9.6 (Desktop)</p>
+        <div class="sc-sub">
+          <button type="button" class="sc-tab active" data-sctab="varredura">Varredura</button>
+          <button type="button" class="sc-tab" data-sctab="logs">Logs</button>
+          <span style="flex:1"></span>
+          <span class="pill" id="scCur">—</span>
+        </div>
+
+        <div id="sctab-varredura">
+          <div class="card">
+            <h2>Consulta rápida (1 CNJ · DataJud + DJEN)</h2>
+            <div class="toolbar">
+              <input id="scanCnj" placeholder="CNJ completo — ex.: 1013666-07.2025.8.26.0477" style="flex:1"/>
+              <button type="button" class="btn btn-pri" id="btnScanOne">Consultar 1</button>
+            </div>
+            <div class="mono" id="scanOut">Aguardando…</div>
+          </div>
+
+          <div class="card">
+            <h2>Modo de operação</h2>
+            <div class="sc-radio">
+              <label><input type="radio" name="scMode" value="both" checked/> Híbrido (sequencial) — DataJud + DJEN em cada CNJ</label>
+              <label><input type="radio" name="scMode" value="datajud"/> Somente Tribunal (DataJud) — varredura de movimentos e prazos</label>
+              <label><input type="radio" name="scMode" value="djen"/> Somente Diário (DJEN) — vigilância de publicações oficiais</label>
+            </div>
+            <h2 style="margin-top:.9rem">Escopo da fila</h2>
+            <div class="toolbar">
+              <button type="button" class="btn btn-pri" id="scScopeFull">Carteira full</button>
+              <button type="button" class="btn" id="scScopeCumpr">Só cumprimento</button>
+            </div>
+            <p class="hint" id="scQueueInfo"></p>
+          </div>
+
+          <div class="card">
+            <div class="toolbar">
+              <h2 style="margin:0">Scanner Local</h2>
+              <span class="pill" id="scStatus">ocioso</span>
+            </div>
+            <div class="bar" id="scProg"></div>
+            <div class="sc-kpis">
+              <div class="kpi"><div class="l">DJ alertas</div><div class="v" id="scA">0</div></div>
+              <div class="kpi"><div class="l">DJEN alertas</div><div class="v" id="scD">0</div></div>
+              <div class="kpi"><div class="l">Encerrados</div><div class="v" id="scC">0</div></div>
+              <div class="kpi"><div class="l">Erros</div><div class="v" id="scE">0</div></div>
+              <div class="kpi"><div class="l">Feitos</div><div class="v" id="scF">0/0</div></div>
+            </div>
+            <div class="toolbar" style="margin-top:.7rem">
+              <button type="button" class="btn btn-pri" id="btnScanLocal">Iniciar Varredura Local</button>
+              <button type="button" class="btn" id="btnScanPause" disabled>Pausar</button>
+            </div>
+            <p class="hint">A varredura consulta cada CNJ 1 a 1 (DataJud e/ou DJEN conforme o modo), atualiza o caso na carteira e registra tudo em Logs. Pode ser pausada e retomada a qualquer momento.</p>
+          </div>
+
+          <div class="card">
+            <h2>Feed de auditoria unificada</h2>
+            <div class="sc-feed" id="scanFeed">
+              <div class="empty"><b>Aguardando telemetria</b>Inicie a varredura local para ver os logs ao vivo.</div>
+            </div>
+          </div>
+        </div>
+
+        <div id="sctab-logs" style="display:none">
+          <div class="card">
+            <div class="toolbar">
+              <h2 style="margin:0;flex:1">Logs do scanner (persistente)</h2>
+              <span class="pill" id="scLogCount">0</span>
+              <button type="button" class="btn" id="btnScLogExport">Exportar CSV</button>
+              <button type="button" class="btn" id="btnScLogClear">Limpar</button>
+            </div>
+            <p class="hint">Histórico local das consultas (até 200 registros, sobrevive a reinícios). Exporte CSV para auditoria externa.</p>
+            <div class="mono" id="scLogList" style="max-height:60vh">Sem logs ainda.</div>
+          </div>
+        </div>
+      </section>
+
       <section class="panel" id="p-veredito">
         <div class="card">
           <h2>Veredito rápido</h2>
           <div class="toolbar">
             <input id="verCnj" placeholder="CNJ completo" style="flex:1"/>
-            <button type="button" class="btn btn-primary" id="btnVeredito">Buscar</button>
+            <button type="button" class="btn btn-pri" id="btnVeredito">Buscar</button>
           </div>
           <div class="mono" id="verOut">—</div>
         </div>
       </section>
-      <!-- SUGERIR -->
-      <section class="panel" id="p-sugerir">
-        <div class="card">
-          <h2>Sugerir resposta (cliente)</h2>
-          <div class="field"><label>CNJ ou cliente na carteira</label><input id="sugRef"/></div>
-          <button type="button" class="btn btn-primary" id="btnSugerir">Gerar script</button>
-          <div class="mono" id="sugOut" style="margin-top:.65rem">—</div>
-          <button type="button" class="btn" id="btnCopySug" style="margin-top:.5rem">Copiar</button>
-        </div>
-      </section>
-      <!-- REPORT -->
-      <section class="panel" id="p-report">
+
+      <section class="panel" id="p-dossie">
         <div class="card">
           <h2>Dossiê operacional</h2>
           <div class="toolbar">
-            <button type="button" class="btn btn-primary" id="btnReport">Gerar relatório</button>
+            <button type="button" class="btn btn-pri" id="btnReport">Gerar relatório</button>
             <button type="button" class="btn" id="btnCopyReport">Copiar</button>
             <button type="button" class="btn" id="btnExportReport">Salvar TXT</button>
           </div>
           <div class="mono" id="reportOut">Clique em Gerar relatório.</div>
         </div>
       </section>
-      <!-- PLANO B -->
-      <section class="panel" id="p-planob">
-        <div class="card">
-          <h2>1 · Link da planilha Google</h2>
-          <p class="hint">Arquivo → Compartilhar → Qualquer pessoa com o link. Cole a URL completa (com ou sem /edit).</p>
-          <div class="field"><label>URL da planilha</label>
-            <input type="url" id="sheetsUrl" placeholder="https://docs.google.com/spreadsheets/d/1JHiy3SbHRd5di5U9Zx4yvKrCSKtaOnFQdiZo0RDY9O0/edit?gid=2042875891"/>
+
+      <section class="panel" id="p-notas">
+        <div class="grid2">
+          <div class="card">
+            <h2>Nova nota</h2>
+            <div class="field"><label class="lbl">Cliente / CNJ</label><input id="notaRef" placeholder="Nome ou protocolo"/></div>
+            <div class="field"><label class="lbl">Texto</label><textarea id="notaTxt" rows="3"></textarea></div>
+            <button type="button" class="btn btn-pri" id="btnNota">Salvar nota</button>
           </div>
-          <button type="button" class="btn btn-primary" id="btnSheets">Carregar planilha</button>
-          <p class="hint" id="sheetsStatus"></p>
-          <p class="hint" id="importDiag" style="color:var(--accent);font-weight:600"></p>
-          <p class="hint">Leitura: link da planilha (export CSV). <b>Escrita</b>: URL do Apps Script (deploy web) — atualiza colunas <b>M (RETORNO)</b> e <b>N (PRÓXIMO RETORNO)</b> + obs do scan.</p>
-          <div class="field"><label>Webhook Apps Script (escrita)</label>
-            <input type="url" id="sheetsWebhook" placeholder="https://script.google.com/macros/s/.../exec"/>
+          <div class="card">
+            <h2>Notas salvas</h2>
+            <div id="notasList" class="hint">Nenhuma nota ainda.</div>
           </div>
-          <div class="toolbar">
-            <button type="button" class="btn btn-ok" id="btnPushSheets">Enviar retornos → planilha (M/N)</button>
-            <button type="button" class="btn btn-primary" id="btnExportSheetCsv">Exportar CSV (fallback)</button>
-          </div>
-          <p class="hint" id="pushStatus">Sem envio ainda. Script: docs/SHEETS_WRITE_APPS_SCRIPT.md</p>
-        </div>
-        <div class="card">
-          <h2>2 · Colar CSV</h2>
-          <textarea id="csvPaste" rows="5" placeholder="Cole linhas CSV aqui…"></textarea>
-          <button type="button" class="btn btn-primary" id="btnPaste" style="margin-top:.5rem">Importar colado</button>
-        </div>
-        <div class="card">
-          <h2>3 · Arquivo local</h2>
-          <input type="file" id="fileCsv" accept=".csv,text/csv,text/plain"/>
-        </div>
-        <div class="card">
-          <h2>4 · Exportar / limpar</h2>
-          <div class="toolbar">
-            <button type="button" class="btn" id="btnSaveDisk2">Salvar no PC</button>
-            <button type="button" class="btn" id="btnLoadDisk">Recarregar do PC</button>
-            <button type="button" class="btn" id="btnClear" style="color:var(--danger)">Limpar carteira</button>
-            <button type="button" class="btn" id="btnOpenCsvFolder">Exportar CSV editável</button>
-          </div>
-          <p class="hint">Editar no Excel: exporte CSV → edite → reimporte (colar ou arquivo). O app grava também em lexis-offline-db.json.</p>
         </div>
       </section>
-      <!-- IA -->
-      <section class="panel" id="p-ia">
-        <div class="card">
-          <h2>Assistente IA (PC fraco)</h2>
-          <p class="hint">MiniMax Cloud: cole a chave sk-api-… abaixo (internet). Ollama local: modelo qwen2.5:0.5b na porta <b>11434</b> (PC fraco).</p>
-          <div class="field"><label>Provider</label>
-            <select id="aiProv"><option value="minimax">MiniMax Cloud</option><option value="ollama">Ollama local</option><option value="openrouter">OpenRouter</option></select>
-          </div>
-          <div class="field"><label>API key (MiniMax / OpenRouter)</label><input id="aiKey" type="password" placeholder="sk-api-… (MiniMax) ou sk-or-…"/></div>
-          <div class="field"><label>Pergunta</label><textarea id="aiPrompt" rows="3" placeholder="Ex: quantos vencidos tenho? resuma a fila"></textarea></div>
-          <button type="button" class="btn btn-primary" id="btnAi">Perguntar</button>
-          <div class="mono" id="aiOut" style="margin-top:.65rem">—</div>
-        </div>
-      </section>
-      <!-- CONFIG -->
+
       <section class="panel" id="p-config">
         <div class="card">
+          <h2>Vínculo com a planilha (2 vias)</h2>
+          <div class="field"><label class="lbl">URL da planilha (leitura)</label><input id="cfgUrl" placeholder="https://docs.google.com/spreadsheets/d/…"/></div>
+          <div class="field"><label class="lbl">URL do webhook Apps Script (escrita)</label><input id="cfgWebhook" placeholder="https://script.google.com/macros/s/…/exec"/></div>
+          <div class="field"><label class="lbl">Token (mesmo do script)</label><input id="cfgToken" placeholder="w1-fase1-2026"/></div>
+          <div class="field"><label class="lbl">Seu nome (atendido_por / editado_por)</label><input id="cfgOper" placeholder="Ex: Maria"/></div>
+          <div class="toolbar">
+            <button type="button" class="btn" id="btnTestWebhook">Testar webhook</button>
+            <button type="button" class="btn btn-pri" id="btnSync2">Sincronizar agora</button>
+            <button type="button" class="btn" id="btnSaveCfg">Salvar</button>
+          </div>
+          <p class="hint" id="cfgStatus"></p>
+        </div>
+        <div class="card">
           <h2>Sobre</h2>
-          <p class="hint" id="aboutTxt">Lexis Offline v5.1.9 — carteira local, scan com fila persistente, push M/N (Apps Script). DataJud/DJEN precisam de internet.</p>
+          <p class="hint">Lexis Gabinete v6.0 — clone desktop do LexisPredict (Vercel), dados via Google Sheets. DataJud/DJEN e cloud requerem internet; o resto funciona offline e sincroniza depois. Abra sempre pelo EXE.</p>
           <p class="hint" id="pathInfo">DB: —</p>
         </div>
       </section>
+
     </div>
   </div>
 </div>
 
 <div class="modal-bg" id="modalAtend">
   <div class="modal">
-    <h3 style="margin:0 0 .5rem;font-size:1rem">Registrar atendimento</h3>
+    <h3>Registrar atendimento</h3>
     <p class="hint" id="modalCliente">—</p>
-    <div class="field"><label>Próximo retorno</label><input type="date" id="atendPrazo"/></div>
-    <div class="field"><label>Observação</label><textarea id="atendObs" rows="2"></textarea></div>
-    <div class="field"><label><input type="checkbox" id="atendEncerrar"/> Arquivar / encerrar na carteira</label></div>
+    <div class="grid2">
+      <div class="field"><label class="lbl">Próximo retorno</label><input type="date" id="atendPrazo"/></div>
+      <div class="field"><label class="lbl">Último retorno (hoje)</label><input type="date" id="atendUltimo"/></div>
+    </div>
+    <div class="field"><label class="lbl">Observação</label><textarea id="atendObs" rows="2"></textarea></div>
+    <div class="field"><label class="lbl"><input type="checkbox" id="atendEncerrar" style="width:auto"/> Encerrar / arquivar na carteira</label></div>
     <div class="toolbar">
       <button type="button" class="btn" id="atendCancel">Cancelar</button>
-      <button type="button" class="btn btn-primary" id="atendSave">Salvar</button>
+      <button type="button" class="btn btn-pri" id="atendSave">Salvar (envia p/ planilha)</button>
     </div>
   </div>
 </div>
+
+<div class="modal-bg" id="modalEdit">
+  <div class="modal">
+    <h3 id="editTitle">Editar processo</h3>
+    <div class="grid2">
+      <div class="field"><label class="lbl">Cliente</label><input id="edCliente"/></div>
+      <div class="field"><label class="lbl">Protocolo (CNJ)</label><input id="edProtocolo"/></div>
+      <div class="field"><label class="lbl">Telefone</label><input id="edTelefone"/></div>
+      <div class="field"><label class="lbl">Tribunal</label><input id="edTribunal"/></div>
+      <div class="field"><label class="lbl">Advogado</label><input id="edAdvogado"/></div>
+      <div class="field"><label class="lbl">Escritório</label><input id="edEscritorio"/></div>
+      <div class="field"><label class="lbl">Situação</label><input id="edSituacao" placeholder="EM ANDAMENTO"/></div>
+      <div class="field"><label class="lbl">Status manual</label>
+        <select id="edStatusManual"><option value="Automatico">Automático</option><option value="Caso Crítico">Caso Crítico</option><option value="Encerrado">Encerrado</option><option value="Arquivado">Arquivado</option></select>
+      </div>
+      <div class="field"><label class="lbl">Último retorno</label><input type="date" id="edUltimo"/></div>
+      <div class="field"><label class="lbl">Próximo prazo</label><input type="date" id="edPrazo"/></div>
+    </div>
+    <div class="field"><label class="lbl">Observação</label><textarea id="edObs" rows="3"></textarea></div>
+    <div class="toolbar">
+      <button type="button" class="btn" id="edCancel">Cancelar</button>
+      <button type="button" class="btn" id="edDelete" style="color:var(--vencido)">Excluir</button>
+      <button type="button" class="btn btn-pri" id="edSave">Salvar (envia p/ planilha)</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
-
-<script>
-(function () {
-  "use strict";
-  var rows = [];
-  var scanQueue = []; // {protocolo, cliente, enqueuedAt, status: pending|done|error, lastError?}
-  var notes = [];
-  var editId = null;
-  var LS_URL = "lexis_offline_sheets_url";
-  var LS_WEBHOOK = "lexis_offline_sheets_webhook";
-  var __pendingPush = [];
-  var LS_KEY = "lexis_offline_ai_key";
-  var titles = {
-    painel: "Painel", tarefas: "Tarefas / Fila", agenda: "Agenda", processos: "Processos",
-    notas: "Notas", scanner: "Scanner DataJud+DJEN", veredito: "Veredito", sugerir: "Sugerir resposta",
-    report: "Report / Dossiê", planob: "Plano B · Planilha", ia: "Assistente IA", config: "Config"
-  };
-
-  function $(id) { return document.getElementById(id); }
-  function toast(msg) {
-    var t = $("toast");
-    t.textContent = msg;
-    t.classList.add("show");
-    setTimeout(function () { t.classList.remove("show"); }, 2800);
-  }
-  function todayISO() {
-    var d = new Date();
-    var z = function (n) { return n < 10 ? "0" + n : "" + n; };
-    return d.getFullYear() + "-" + z(d.getMonth() + 1) + "-" + z(d.getDate());
-  }
-  function parseDate(s) {
-    if (s == null) return null;
-    s = String(s).trim();
-    if (!s) return null;
-    if (/^(encerrado|cancelad|arquivad|extinto|n\/?a|-|—|#value!|#ref!|s\/?n|sem data|a definir|null|s\/p|sem prazo|n\/d)$/i.test(s)) return null;
-    if (s.indexOf("#") >= 0) return null;
-    // Excel serial
-    if (/^\d+(\.\d+)?$/.test(s)) {
-      var n = parseFloat(s);
-      if (n > 30000 && n < 80000) {
-        var ms = Math.round((n - 25569) * 86400 * 1000);
-        var d0 = new Date(ms);
-        if (!isNaN(d0.getTime())) {
-          var z = function (x) { return x < 10 ? "0" + x : "" + x; };
-          return d0.getUTCFullYear() + "-" + z(d0.getUTCMonth() + 1) + "-" + z(d0.getUTCDate());
-        }
-      }
-    }
-    var m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (m) return m[1] + "-" + m[2] + "-" + m[3];
-    // BR dd/mm/yyyy
-    m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/);
-    if (m) {
-      var d = parseInt(m[1], 10), mo = parseInt(m[2], 10), y = m[3].length === 2 ? 2000 + parseInt(m[3], 10) : parseInt(m[3], 10);
-      if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
-      var zs = function (x) { return x < 10 ? "0" + x : "" + x; };
-      return y + "-" + zs(mo) + "-" + zs(d);
-    }
-    return null;
-  }
-  function daysUntil(prazo) {
-    if (!prazo) return null;
-    var a = new Date(prazo + "T12:00:00");
-    var b = new Date(todayISO() + "T12:00:00");
-    return Math.round((a - b) / 86400000);
-  }
-  function onlyDigits(s) { return String(s || "").replace(/\D/g, ""); }
-  function formatCnj(d) {
-    d = onlyDigits(d);
-    if (d.length !== 20) return d;
-    return d.slice(0, 7) + "-" + d.slice(7, 9) + "." + d.slice(9, 13) + "." + d.slice(13, 14) + "." + d.slice(14, 16) + "." + d.slice(16);
-  }
-  function normalizeCnjInput(s) {
-    var d = onlyDigits(s);
-    if (d.length === 20) return formatCnj(d);
-    return String(s || "").trim();
-  }
-  function computeStatus(r) {
-    var st = String(r.status || "");
-    if (r.arquivado || /arquiv|encerr|baixad|extint|desist/i.test(st)) return "Arquivado";
-    var d = daysUntil(r.prazo);
-    if (d === null) return "Sem prazo";
-    if (d < 0) return "Vencido";
-    if (d === 0) return "É Hoje";
-    if (d <= 7) return "No prazo";
-    return "No prazo";
-  }
-  function statusBadge(st) {
-    if (st === "Vencido") return '<span class="badge b-venc">Vencido</span>';
-    if (st === "É Hoje") return '<span class="badge b-hoje">É hoje</span>';
-    if (st === "Arquivado") return '<span class="badge b-arq">Arquivado</span>';
-    if (st === "No prazo") return '<span class="badge b-ok">No prazo</span>';
-    return '<span class="badge b-arq">' + esc(st) + '</span>';
-  }
-  function esc(s) {
-    return String(s == null ? "" : s)
-      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-  }
-  function kpis() {
-    var total = rows.length, ativos = 0, venc = 0, hoje = 0, arq = 0, sem = 0;
-    for (var i = 0; i < rows.length; i++) {
-      var st = computeStatus(rows[i]);
-      if (st === "Arquivado") arq++;
-      else {
-        ativos++;
-        if (st === "Vencido") venc++;
-        else if (st === "É Hoje") hoje++;
-        else if (st === "Sem prazo") sem++;
-      }
-    }
-    return { total: total, ativos: ativos, venc: venc, hoje: hoje, arq: arq, sem: sem };
-  }
-  function scheduleSave() {
-    if (!window.lexisOffline || !window.lexisOffline.saveDb) return;
-    clearTimeout(window.__saveT);
-    window.__saveT = setTimeout(function () {
-      window.lexisOffline.saveDb({ rows: rows, notes: notes, scanQueue: scanQueue, savedAt: new Date().toISOString(), appVersion: "5.1.9" })
-        .then(function () { /* silent */ })
-        .catch(function () { toast("Falha ao salvar"); });
-    }, 400);
-  }
-  function loadFromDisk() {
-    if (!window.lexisOffline || !window.lexisOffline.loadDb) return Promise.resolve();
-    return window.lexisOffline.loadDb().then(function (data) {
-      if (data && Array.isArray(data.rows)) {
-        rows = data.rows;
-        notes = Array.isArray(data.notes) ? data.notes : [];
-        scanQueue = Array.isArray(data.scanQueue) ? data.scanQueue : [];
-        renderAll();
-        var pend = scanQueue.filter(function (j) { return j.status === "pending"; }).length;
-        toast("Carteira: " + rows.length + " · fila scan: " + pend + " pendente(s)");
-      }
-    }).catch(function () {});
-  }
-  function pick(obj, keys) {
-    for (var i = 0; i < keys.length; i++) {
-      var k = keys[i];
-      if (obj[k] != null && String(obj[k]).trim() !== "") return String(obj[k]).trim();
-      var lower = k.toLowerCase();
-      for (var p in obj) {
-        if (p.toLowerCase().replace(/\s|_/g, "") === lower.replace(/\s|_/g, "") && obj[p] != null && String(obj[p]).trim() !== "")
-          return String(obj[p]).trim();
-      }
-    }
-    return "";
-  }
-  function parseCsv(text) {
-    // CSV completo: aspas, quebra de linha no campo, vírgula ou ponto-e-vírgula
-    function parseCsvRows(str, sep) {
-      str = String(str || "").replace(/^\uFEFF/, "");
-      var rows = [], row = [], cur = "", q = false;
-      for (var i = 0; i < str.length; i++) {
-        var c = str[i], n = str[i + 1];
-        if (q) {
-          if (c === '"' && n === '"') { cur += '"'; i++; }
-          else if (c === '"') q = false;
-          else cur += c;
-        } else {
-          if (c === '"') q = true;
-          else if (c === sep) { row.push(cur); cur = ""; }
-          else if (c === "\n" || c === "\r") {
-            if (c === "\r" && n === "\n") i++;
-            row.push(cur); cur = "";
-            if (row.some(function (x) { return String(x).trim(); })) rows.push(row);
-            row = [];
-          } else cur += c;
-        }
-      }
-      row.push(cur);
-      if (row.some(function (x) { return String(x).trim(); })) rows.push(row);
-      return rows;
-    }
-    function normHeader(h) {
-      return String(h || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
-    }
-    function findCol(nh, aliases, exactFirst) {
-      var i, a, j;
-      if (exactFirst) {
-        for (j = 0; j < aliases.length; j++) {
-          a = normHeader(aliases[j]);
-          for (i = 0; i < nh.length; i++) if (nh[i] === a) return i;
-        }
-      }
-      for (j = 0; j < aliases.length; j++) {
-        a = normHeader(aliases[j]);
-        for (i = 0; i < nh.length; i++) {
-          if (!nh[i]) continue;
-          if (nh[i] === a || nh[i].indexOf(a) >= 0 || a.indexOf(nh[i]) >= 0) return i;
-        }
-      }
-      return -1;
-    }
-    text = String(text || "");
-    // detecta separador na 1ª linha "lógica"
-    var probe = text.slice(0, 800);
-    var sep = (probe.split(";").length > probe.split(",").length) ? ";" : ",";
-    var table = parseCsvRows(text, sep);
-    if (table.length < 2) return { rows: [], diag: { error: "CSV vazio ou 1 linha", sep: sep } };
-
-    var headers = table[0].map(function (x) { return String(x || "").replace(/\s+/g, " ").trim(); });
-    var nh = headers.map(normHeader);
-
-    // NOMES — nunca índice fixo primeiro
-    var idxCliente = findCol(nh, ["cliente", "nome do cliente", "parte", "autor"], true);
-    var idxTel = findCol(nh, ["telefone", "celular", "whatsapp", "fone"], true);
-    var idxProt = findCol(nh, ["protocolo", "cnj", "numero do processo", "n processo", "processo"], true);
-    var idxStatus = findCol(nh, ["status", "situacao"], true);
-    // RETORNO = col M W1 — match EXATO "retorno" antes de "data retorno" genérico
-    var idxRetorno = -1;
-    for (var i = 0; i < nh.length; i++) if (nh[i] === "retorno") { idxRetorno = i; break; }
-    if (idxRetorno < 0) idxRetorno = findCol(nh, ["ultimo retorno", "ultimo", "dt retorno", "data retorno"], true);
-    // PRÓXIMO RETORNO = col N — não confundir com "decorrido prazo do banco"
-    var idxProx = -1;
-    for (var j = 0; j < nh.length; j++) {
-      if (nh[j] === "proximo retorno" || nh[j] === "proximo prazo" || nh[j] === "prox retorno") { idxProx = j; break; }
-    }
-    if (idxProx < 0) {
-      for (var k = 0; k < nh.length; k++) {
-        if (nh[k].indexOf("proximo retorno") >= 0 || nh[k].indexOf("prox retorno") >= 0) { idxProx = k; break; }
-      }
-    }
-    if (idxProx < 0) {
-      // só "prazo" isolado, não "decorrido prazo..."
-      for (var p = 0; p < nh.length; p++) if (nh[p] === "prazo") { idxProx = p; break; }
-    }
-    var idxConclusos = findCol(nh, ["conclusos", "observacao", "obs"], false);
-    var idxAtend = findCol(nh, ["atendente", "operador", "advogado responsavel"], false);
-
-    // Fallback posicional planilha W1 clássica (só se nome falhou)
-    if (headers.length >= 14) {
-      if (idxRetorno < 0) idxRetorno = 12;
-      if (idxProx < 0) idxProx = 13;
-      if (idxCliente < 0) idxCliente = 3;
-      if (idxTel < 0) idxTel = 4;
-      if (idxProt < 0) idxProt = 5;
-      if (idxStatus < 0) idxStatus = 7;
-    }
-
-    var out = [];
-    var comPrazo = 0, comUlt = 0, skip = 0;
-    for (var li = 1; li < table.length; li++) {
-      var cols = table[li];
-      function col(ix) { return ix >= 0 && ix < cols.length ? String(cols[ix] || "").trim() : ""; }
-      var cliente = col(idxCliente);
-      var protocolo = normalizeCnjInput(col(idxProt));
-      if (!cliente && onlyDigits(protocolo).length < 15) { skip++; continue; }
-      var prazo = parseDate(col(idxProx));
-      var ultimo = parseDate(col(idxRetorno));
-      if (prazo) comPrazo++;
-      if (ultimo) comUlt++;
-      var status = col(idxStatus);
-      var mov = col(idxConclusos);
-      var telefone = col(idxTel);
-      var id = onlyDigits(protocolo) || ("row-" + li);
-      out.push({
-        id: id,
-        cliente: cliente,
-        protocolo: protocolo,
-        prazo: prazo,
-        ultimo: ultimo,
-        telefone: telefone,
-        status: status,
-        obs: mov,
-        movimentacao: mov,
-        atendente: col(idxAtend),
-        arquivado: /encerr|arquiv|cancel/i.test(status || ""),
-        created_by: col(idxAtend) || "planilha",
-        atendido_por: null,
-        atendido_em: null,
-      });
-    }
-    var diag = {
-      sep: sep,
-      header: headers,
-      colRetorno: idxRetorno,
-      colPrazo: idxProx,
-      colProtocolo: idxProt,
-      colCliente: idxCliente,
-      total: out.length,
-      comPrazo: comPrazo,
-      comUltimo: comUlt,
-      skip: skip,
-      letterRetorno: idxRetorno >= 0 ? String.fromCharCode(65 + (idxRetorno % 26)) : "?",
-      letterPrazo: idxProx >= 0 ? String.fromCharCode(65 + (idxProx % 26)) : "?",
-    };
-    return { rows: out, diag: diag };
-  }
-  function mergeRows(incoming) {
-    var map = {};
-    rows.forEach(function (r) { map[r.id] = r; });
-    incoming.forEach(function (r) {
-      if (map[r.id]) Object.assign(map[r.id], r);
-      else { map[r.id] = r; rows.push(r); }
-    });
-    scheduleSave();
-    renderAll();
-  }
-  function sortUrg(list) {
-    return list.slice().sort(function (a, b) {
-      var da = daysUntil(a.prazo); var db = daysUntil(b.prazo);
-      if (da === null) da = 9999; if (db === null) db = 9999;
-      return da - db;
-    });
-  }
-  function actionsHtml(r) {
-    return '<div class="row-actions">' +
-      '<button type="button" class="btn" data-act="atend" data-id="' + esc(r.id) + '">Atender</button>' +
-      '<button type="button" class="btn" data-act="scan" data-id="' + esc(r.id) + '">Scan</button>' +
-      (r.telefone ? '<button type="button" class="btn" data-act="wa" data-id="' + esc(r.id) + '">WhatsApp</button>' : '') +
-      '</div>';
-  }
-  function tableHtml(list, cols) {
-    if (!list.length) return '<div class="empty"><b>Nada nesta fila</b>Troque o filtro (ex.: Trabalho ou Sem prazo) ou marque retornos em Atender.</div>';
-    var h = '<table><thead><tr>';
-    cols.forEach(function (c) { h += '<th>' + c + '</th>'; });
-    h += '</tr></thead><tbody>';
-    list.forEach(function (r) {
-      var st = computeStatus(r);
-      h += '<tr>';
-      cols.forEach(function (c) {
-        var cl = c.toLowerCase();
-        if (cl.indexOf("cliente") === 0) h += '<td><b>' + esc(r.cliente || "—") + '</b><div class="meta" style="font-size:.65rem">' + esc(r.protocolo || "") + '</div></td>';
-        else if (cl.indexOf("status") === 0) h += '<td>' + statusBadge(st) + '</td>';
-        else if (cl.indexOf("último") === 0 || cl.indexOf("ultimo") === 0) h += '<td>' + esc(r.ultimo || "—") + '</td>';
-        else if (cl.indexOf("próx") === 0 || cl.indexOf("prox") === 0 || cl === "retorno") h += '<td>' + esc(r.prazo || "—") + '</td>';
-        else if (cl.indexOf("dias") === 0) h += '<td>' + (daysUntil(r.prazo) == null ? "—" : daysUntil(r.prazo)) + '</td>';
-        else if (cl.indexOf("ações") === 0 || cl.indexOf("acoes") === 0) h += '<td class="row-actions">' + actionsHtml(r) + '</td>';
-        else if (cl.indexOf("mov") === 0) h += '<td style="max-width:220px;font-size:.68rem">' + esc((r.movimentacao || r.obs || "").slice(0, 120)) + '</td>';
-        else h += '<td>—</td>';
-      });
-      h += '</tr>';
-    });
-    h += '</tbody></table>';
-    return h;
-  }
-  function renderAll() {
-    var k = kpis();
-    $("countPill").textContent = k.total + " proc.";
-    $("kpiRow").innerHTML =
-      kpiCard("Total", k.total, "") + kpiCard("Ativos", k.ativos, "pri") +
-      kpiCard("Vencidos", k.venc, "danger") + kpiCard("É hoje", k.hoje, "warn") +
-      kpiCard("Arquivados", k.arq, "") + kpiCard("Sem prazo", k.sem, "");
-    var crit = sortUrg(rows.filter(function (r) {
-      var st = computeStatus(r); return st === "Vencido" || st === "É Hoje";
-    })).slice(0, 40);
-    if (!crit.length) {
-      crit = rows.filter(function (r) { return computeStatus(r) === "Sem prazo"; })
-        .sort(function (a, b) { return String(a.cliente||"").localeCompare(String(b.cliente||"")); })
-        .slice(0, 40);
-    }
-    $("critTable").innerHTML = (crit.length && computeStatus(crit[0]) === "Sem prazo"
-      ? '<p class="hint">Nenhum vencido/hoje: a planilha veio sem coluna de prazo. Mostrando ativos <b>sem prazo</b> — use Atender para marcar o próximo retorno.</p>'
-      : '') + tableHtml(crit, ["Cliente", "Status", "Retorno", "Dias", "Ações"]);
-
-    var ft = ($("filtroTarefas") && $("filtroTarefas").value) || "trabalho";
-    var qt = (($("qTarefas") && $("qTarefas").value) || "").toLowerCase();
-    var tl = rows.filter(function (r) {
-      var st = computeStatus(r);
-      if (ft === "trabalho" && st === "Arquivado") return false;
-      if (ft === "semprazo" && st !== "Sem prazo") return false;
-      if (ft === "fila" && st !== "Vencido" && st !== "É Hoje") return false;
-      if (ft === "vencido" && st !== "Vencido") return false;
-      if (ft === "hoje" && st !== "É Hoje") return false;
-      if (ft === "pendente" && st !== "No prazo") return false;
-      if (ft === "todos") { /* all */ }
-      if (qt && !(String(r.cliente || "").toLowerCase().indexOf(qt) >= 0 || String(r.protocolo || "").toLowerCase().indexOf(qt) >= 0)) return false;
-      return true;
-    });
-    $("tarefasTable").innerHTML = tableHtml(sortUrg(tl).slice(0, 200), ["Cliente", "Status", "Retorno", "Dias", "Ações"]);
-
-    var week = [];
-    var now = new Date(todayISO() + "T12:00:00");
-    for (var i = 0; i < rows.length; i++) {
-      var r = rows[i];
-      if (!r.prazo || computeStatus(r) === "Arquivado") continue;
-      var d = new Date(r.prazo + "T12:00:00");
-      var diff = Math.round((d - now) / 86400000);
-      if (diff >= 0 && diff <= 7) week.push(r);
-    }
-    $("agendaKpis").innerHTML = kpiCard("Nesta semana", week.length, "pri") + kpiCard("Vencidos", k.venc, "danger") + kpiCard("Sem prazo", k.sem, "warn");
-    var agHtml = "";
-    if (!week.length) {
-      agHtml = '<p class="hint">Agenda vazia: nenhum <b>próximo retorno</b> nos próximos 7 dias. Na planilha, a coluna prazo/proximo_retorno está vazia. Marque retornos em Atender.</p>';
-    }
-    $("agendaTable").innerHTML = agHtml + tableHtml(sortUrg(week.length ? week : rows.filter(function(r){return computeStatus(r)==="Sem prazo";}).slice(0,50)), ["Cliente", "Status", "Retorno", "Dias", "Ações"]);
-
-    var fp = ($("filtroProc") && $("filtroProc").value) || "ativos";
-    var qp = (($("qProc") && $("qProc").value) || "").toLowerCase();
-    var pl = rows.filter(function (r) {
-      var st = computeStatus(r);
-      if (fp === "ativos" && st === "Arquivado") return false;
-      if (fp === "arq" && st !== "Arquivado") return false;
-      if (fp === "vencido" && st !== "Vencido") return false;
-      if (qp && !(String(r.cliente || "").toLowerCase().indexOf(qp) >= 0 || String(r.protocolo || "").toLowerCase().indexOf(qp) >= 0)) return false;
-      return true;
-    });
-    $("procTable").innerHTML = tableHtml(sortUrg(pl).slice(0, 300), ["Cliente", "Status", "Retorno", "Dias", "Ações"]);
-
-    if (notes.length) {
-      $("notasList").innerHTML = notes.slice().reverse().slice(0, 50).map(function (n) {
-        return '<div style="border-bottom:1px solid var(--border);padding:.4rem 0"><b>' + esc(n.ref) + '</b> · ' + esc(n.at) + '<div>' + esc(n.text) + '</div></div>';
-      }).join("");
-    }
-  }
-  function kpiCard(l, v, cls) {
-    return '<div class="kpi ' + (cls || "") + '"><div class="l">' + l + '</div><div class="v">' + v + '</div></div>';
-  }
-  function nav(name) {
-    document.querySelectorAll(".nav").forEach(function (b) {
-      b.classList.toggle("active", b.getAttribute("data-nav") === name);
-    });
-    document.querySelectorAll(".panel").forEach(function (p) {
-      p.classList.toggle("active", p.id === "p-" + name);
-    });
-    $("pageTitle").textContent = titles[name] || name;
-  }
-  document.querySelectorAll(".nav").forEach(function (b) {
-    b.addEventListener("click", function () { nav(b.getAttribute("data-nav")); });
-  });
-
-  $("btnGotoImport").onclick = function () { nav("planob"); };
-  $("btnSaveDisk").onclick = $("btnSaveDisk2").onclick = function () {
-    if (!window.lexisOffline) return toast("Abra pelo EXE");
-    window.lexisOffline.saveDb({ rows: rows, notes: notes, scanQueue: scanQueue, savedAt: new Date().toISOString(), appVersion: "5.1.9" })
-      .then(function () { toast("Salvo no PC"); }).catch(function (e) { toast(String(e)); });
-  };
-  $("btnLoadDisk").onclick = function () { loadFromDisk(); };
-
-  if ($("btnExportSheetCsv")) $("btnExportSheetCsv").onclick = function () {
-    if ($("btnExportCsv")) $("btnExportCsv").click();
-    else {
-      var lines = ["cliente,protocolo,prazo,ultimo,telefone,status,obs"];
-      function q(s) { s = String(s == null ? "" : s).replace(/"/g, '""'); return '"' + s + '"'; }
-      rows.forEach(function (r) {
-        lines.push([q(r.cliente), q(r.protocolo), q(r.prazo), q(r.ultimo), q(r.telefone), q(r.status), q(r.obs)].join(","));
-      });
-      var csv = lines.join("\n");
-      if (window.lexisOffline && window.lexisOffline.exportCsvFile) window.lexisOffline.exportCsvFile(csv, "lexis-carteira-para-planilha.csv");
-      else {
-        var a = document.createElement("a");
-        a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-        a.download = "lexis-carteira-para-planilha.csv"; a.click();
-      }
-      toast("CSV pronto para importar na planilha Google");
-    }
-  };
-  if ($("btnPushSheets")) $("btnPushSheets").onclick = function () { pushPendingToSheets(true); };
-  $("btnSheets").onclick = async function () {
-    var url = $("sheetsUrl").value.trim();
-    if (!url) return toast("Cole o link da planilha");
-    try { localStorage.setItem(LS_URL, url); } catch (e) {}
-    if (!window.lexisOffline || !window.lexisOffline.fetchText) return toast("Abra pelo Lexis Gabinete.exe");
-    $("sheetsStatus").textContent = "Baixando…";
-    try {
-      var res = await window.lexisOffline.fetchText(url);
-      if (!res || !res.ok) {
-        $("sheetsStatus").textContent = (res && res.error) || "Falha";
-        return toast("Falha ao baixar planilha (publique o link)");
-      }
-      var parsed = parseCsv(res.text || "");
-      var incoming = parsed.rows || [];
-      var diag = parsed.diag || {};
-      if (!incoming.length) {
-        $("sheetsStatus").textContent = "CSV vazio. sep=" + (diag.sep || "?");
-        return toast("Nenhuma linha válida");
-      }
-      rows = incoming;
-      scheduleSave();
-      renderAll();
-      var msg = incoming.length + " linhas | col RETORNO = " + diag.colRetorno + " (" + (diag.letterRetorno || "?") + ") | col PRAZO = " + diag.colPrazo + " (" + (diag.letterPrazo || "?") + ") | com prazo: " + diag.comPrazo + " | com retorno: " + diag.comUltimo;
-      $("sheetsStatus").textContent = msg;
-      if ($("importDiag")) $("importDiag").textContent = msg;
-      toast(msg);
-      if (!diag.comPrazo) toast("ATENÇÃO: 0 prazos — confira o diagnóstico de colunas");
-      nav("processos");
-    } catch (e) {
-      $("sheetsStatus").textContent = String(e.message || e);
-      toast("Erro na planilha");
-    }
-  };
-  $("btnPaste").onclick = function () {
-    var parsed = parseCsv($("csvPaste").value);
-    var incoming = parsed.rows || [];
-    if (!incoming.length) return toast("CSV inválido");
-    rows = incoming;
-    if (parsed.diag) toast(incoming.length + " | RETORNO col " + parsed.diag.colRetorno + " | PRAZO col " + parsed.diag.colPrazo + " | com prazo " + parsed.diag.comPrazo); scheduleSave(); renderAll(); toast(incoming.length + " linhas"); nav("painel");
-  };
-  $("fileCsv").onchange = function (ev) {
-    var f = ev.target.files && ev.target.files[0];
-    if (!f) return;
-    var reader = new FileReader();
-    reader.onload = function () {
-      var parsed = parseCsv(String(reader.result || ""));
-      var incoming = parsed.rows || [];
-      if (!incoming.length) return toast("Arquivo sem linhas válidas");
-      rows = incoming;
-      if (parsed.diag) toast(incoming.length + " | RETORNO col " + parsed.diag.colRetorno + " | PRAZO col " + parsed.diag.colPrazo + " | com prazo " + parsed.diag.comPrazo); scheduleSave(); renderAll(); toast(incoming.length + " importados"); nav("painel");
-    };
-    reader.readAsText(f, "UTF-8");
-  };
-  $("btnClear").onclick = function () {
-    if (!confirm("Limpar toda a carteira local?")) return;
-    rows = []; notes = []; scheduleSave(); renderAll(); toast("Limpo");
-  };
-  $("btnExportCsv").onclick = $("btnOpenCsvFolder").onclick = async function () {
-    var lines = ["cliente,protocolo,prazo,ultimo,telefone,status,obs"];
-    rows.forEach(function (r) {
-      function q(s) { return '"' + String(s || "").replace(/"/g, '""') + '"'; }
-      lines.push([q(r.cliente), q(r.protocolo), q(r.prazo), q(r.ultimo), q(r.telefone), q(r.status), q(r.obs)].join(","));
-    });
-    var csv = lines.join("\n");
-    if (window.lexisOffline && window.lexisOffline.exportCsvFile) {
-      await window.lexisOffline.exportCsvFile(csv, "lexis-carteira.csv");
-      toast("CSV exportado");
-    } else {
-      var blob = new Blob([csv], { type: "text/csv" });
-      var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "lexis-carteira.csv"; a.click();
-    }
-  };
-
-  function addBusinessDays(iso, n) {
-    if (!iso || !n) return null;
-    var d = new Date(iso + "T12:00:00");
-    if (isNaN(d.getTime())) return null;
-    var left = n;
-    while (left > 0) {
-      d.setDate(d.getDate() + 1);
-      var w = d.getDay();
-      if (w !== 0 && w !== 6) left--;
-    }
-    var z = function (x) { return x < 10 ? "0" + x : "" + x; };
-    return d.getFullYear() + "-" + z(d.getMonth() + 1) + "-" + z(d.getDate());
-  }
-  function stripHtml(html) {
-    var s = String(html || "");
-    s = s.replace(/<script[\s\S]*?<\/script>/gi, " ");
-    s = s.replace(/<style[\s\S]*?<\/style>/gi, " ");
-    s = s.replace(/<[^>]+>/g, " ");
-    s = s.replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">");
-    s = s.replace(/&iacute;/gi, "i").replace(/&atilde;/gi, "a").replace(/&ccedil;/gi, "c");
-    s = s.replace(/&ordm;/gi, "o").replace(/&ndash;/gi, "-").replace(/&#\d+;/g, " ");
-    return s.replace(/\s+/g, " ").trim();
-  }
-  
-  function classifyDjenLp(plain, tipo) {
-    var u = String(plain || "").toUpperCase();
-    if (/(EXTIN|EXTINTO|CANCELAMENTO DA DISTRIB)/.test(u)) return "Extinção / cancelamento";
-    if (/(EMENDA|EMENDE|ADITAMENTO)/.test(u)) return "Emenda à inicial";
-    if (/(AJG|GRATUIDADE|HIPOSSUF)/.test(u)) return "Justiça gratuita";
-    if (/(TRÂNSITO|TRANSITO EM JULGADO|BAIXA DEFINITIVA)/.test(u)) return "Trânsito / baixa";
-    if (/(CUMPRIMENTO DE SENTEN|ART\.?\s*523|PENHORA)/.test(u)) return "Cumprimento de sentença";
-    if (/(JULGO\s+(PARCIALMENTE\s+)?PROCEDENTE|PROCEDÊNCIA)/.test(u)) return "Sentença procedente";
-    if (/(JULGO\s+IMPROCEDENTE|IMPROCEDÊNCIA)/.test(u)) return "Sentença improcedente";
-    if (/(ACÓRDÃO|ACORDAO|NEGARAM-LHE PROVIMENTO|DERAM PROVIMENTO)/.test(u)) return "Acórdão / recurso";
-    if (/(CONTESTAÇÃO|CONTESTACAO)/.test(u) && /(INTIM|PRAZO)/.test(u)) return "Intimação — contestação";
-    if (/(RÉPLICA|REPLICA|IMPUGNAR A CONTEST)/.test(u)) return "Intimação — réplica";
-    if (/(ESPECIFICA|PROVAS QUE PRETENDEM)/.test(u)) return "Intimação — especificar provas";
-    if (/(AUDIÊNCIA|AUDIENCIA)/.test(u)) return "Audiência";
-    if (/(CONCLUSOS)/.test(u)) return "Conclusos";
-    if (/(DESPACHO)/.test(u)) return "Despacho";
-    if (/(SENTEN)/.test(u)) return "Sentença";
-    if (/(DISTRIBU)/.test(u)) return "Distribuição";
-    return tipo || "Publicação DJEN";
-  }
-
-  function summarizeMovimento(texto, tipo) {
-    var t = stripHtml(texto);
-    if (!t) return tipo || "Sem teor";
-    // pega trecho após DESPACHO / DECISÃO / SENTENÇA
-    var cut = t.search(/DESPACHO|DECIS[AÃ]O|SENTEN[CÇ]A|INTIMA[CÇ][AÃ]O|ATA DE AUDI[EÊ]NCIA/i);
-    var body = cut >= 0 ? t.slice(cut) : t;
-    body = body.replace(/^ESTADO DO .+?(?=DESPACHO|DECIS|SENTEN|INTIMA|Processo)/i, "");
-    // remove cabeçalho processual repetido
-    body = body.replace(/Processo n[ºo°]\s*[\d\.\-]+/ig, "");
-    body = body.replace(/Classe:.*?REU:.*?(?=DESPACHO|DECIS|SENTEN|INTIMA|$)/ig, "");
-    body = body.replace(/\s+/g, " ").trim();
-    // classifica ação
-    var acao = classifyDjenLp(body, tipo);
-    if (/julgo\s+(parcialmente\s+)?procedente/i.test(body)) acao = "Sentença procedente";
-    else if (/julgo\s+improcedente/i.test(body)) acao = "Sentença improcedente";
-    else if (/conclusos?\s+para/i.test(body)) acao = "Conclusos";
-    else if (/especifiquem?\s+as\s+provas|fase de instru[cç][aã]o/i.test(body)) acao = "Intimação — especificar provas / réplica";
-    else if (/contest[a][cç][aã]o/i.test(body) && /intim/i.test(body)) acao = "Intimação — contestação / prazo";
-    else if (/audi[eê]ncia/i.test(body)) acao = "Audiência";
-    else if (/penhora|bloqueio|cumprimento de senten/i.test(body)) acao = "Cumprimento / penhora";
-    else if (/DESPACHO/i.test(body)) acao = "Despacho";
-    var resumo = body.slice(0, 320);
-    return { acao: acao, resumo: resumo };
-  }
-  function extractFromDjen(dn) {
-    var items = (dn && dn.items) || [];
-    var ultimo = null, ultimoTipo = "", texto = "", link = "";
-    for (var i = 0; i < items.length; i++) {
-      var it = items[i];
-      if (!ultimo || String(it.data || "") > ultimo) {
-        ultimo = it.data || null;
-        ultimoTipo = it.tipo || "";
-        texto = it.texto || "";
-        link = it.link || "";
-      }
-    }
-    var sum = summarizeMovimento(texto, ultimoTipo);
-    var prazoDias = null;
-    var m = texto.match(/prazo\s+(?:comum\s+)?de\s+(\d+)\s*\(?\s*(?:quinze|dez|cinco|\d+)?\s*\)?\s*dias/i)
-      || texto.match(/no\s+prazo\s+(?:comum\s+)?de\s+(\d+)/i)
-      || texto.match(/prazo\s+de\s+(\d+)\s*\(\w+\)\s*dias/i);
-    if (m) prazoDias = parseInt(m[1], 10);
-    if (!prazoDias && /quinze\s*\(?15\)?\s*dias|15\s*\(quinze\)\s*dias/i.test(texto)) prazoDias = 15;
-    if (!prazoDias && /dez\s*\(?10\)?\s*dias|10\s*\(dez\)\s*dias/i.test(texto)) prazoDias = 10;
-    var proximo = prazoDias && ultimo ? addBusinessDays(ultimo, prazoDias) : null;
-    return {
-      ultimo: ultimo,
-      ultimoTipo: sum.acao || ultimoTipo,
-      prazoDias: prazoDias,
-      proximo: proximo,
-      resumo: sum.resumo,
-      link: link,
-      count: items.length,
-    };
-  }
-  function formatScanHtml(res) {
-    if (res.error) return '<div class="scan-card"><b style="color:var(--danger)">Erro</b><p>' + esc(res.error) + '</p></div>';
-    var dj = res.datajud || {};
-    var ex = extractFromDjen(res.djen);
-    var h = "";
-    h += '<div class="scan-card">';
-    h += '<h3>' + esc(res.cnj) + '</h3>';
-    h += '<div class="meta">Tribunal (DataJud): ' + esc(dj.alias || "—") + (dj.found === false || (!dj.movimentosCount && !dj.ultimoNome) ? ' · <span style="color:var(--warn)">sem movimentos indexados</span>' : '') + '</div>';
-    if (dj.ultimoNome) h += '<div><b>Último DataJud:</b> ' + esc(dj.ultimoNome) + ' · ' + esc(String(dj.ultimoData || "").slice(0, 10)) + '</div>';
-    if (dj.nota) h += '<div class="meta">' + esc(dj.nota) + '</div>';
-    h += '<div style="margin-top:.5rem"><b>DJEN:</b> ' + ex.count + ' comunicação(ões)</div>';
-    if (ex.ultimo) h += '<div><b>Último retorno:</b> ' + esc(ex.ultimo) + '</div>';
-    if (ex.ultimoTipo) h += '<div><b>O que houve:</b> ' + esc(ex.ultimoTipo) + '</div>';
-    if (ex.prazoDias) h += '<div><b>Prazo no teor:</b> ' + ex.prazoDias + ' dias úteis → <b>próximo:</b> ' + esc(ex.proximo || "—") + '</div>';
-    else h += '<div class="meta">Nenhum prazo em dias detectado no texto do DJEN.</div>';
-    if (ex.resumo) h += '<div class="meta" style="margin-top:.35rem">' + esc(ex.resumo) + '…</div>';
-    if (ex.link) h += '<div style="margin-top:.35rem"><a href="#" data-ext="' + esc(ex.link) + '" class="btn" style="display:inline-block">Abrir no PJe</a></div>';
-    h += '</div>';
-    return h;
-  }
-  window.__lastScan = null;
-  async function runScan(cnjRaw) {
-    var cnj = normalizeCnjInput(cnjRaw);
-    var d = onlyDigits(cnj);
-    if (d.length !== 20) {
-      return { error: "CNJ precisa de 20 dígitos. Exemplo: 1013666-07.2025.8.26.0477 (você colou " + d.length + " dígitos)." };
-    }
-    if (!window.lexisOffline) return { error: "Abra pelo EXE" };
-    var dj = await window.lexisOffline.datajud(cnj);
-    var dn = await window.lexisOffline.djen(cnj);
-    return { cnj: formatCnj(d), datajud: dj, djen: dn };
-  }
-
-
-  function enqueueScan(protocolo, cliente) {
-    var d = onlyDigits(protocolo);
-    if (d.length !== 20) return false;
-    var exists = scanQueue.some(function (j) { return onlyDigits(j.protocolo) === d && j.status === "pending"; });
-    if (exists) return false;
-    scanQueue.push({
-      protocolo: formatCnj(d),
-      cliente: cliente || "",
-      enqueuedAt: new Date().toISOString(),
-      status: "pending",
-    });
-    scheduleSave();
-    return true;
-  }
-  function renderScanQueueHint() {
-    var pend = scanQueue.filter(function (j) { return j.status === "pending"; });
-    var el = $("scanQueueStatus");
-    if (el) el.textContent = pend.length
-      ? ("Fila persistente: " + pend.length + " CNJ(s) pendente(s) — processar com internet.")
-      : "Fila de scan vazia.";
-  }
-  async function processScanQueue(limit) {
-    limit = limit || 15;
-    var pend = scanQueue.filter(function (j) { return j.status === "pending"; }).slice(0, limit);
-    if (!pend.length) { toast("Fila de scan vazia"); return; }
-    if ($("scanView")) $("scanView").innerHTML = '<p class="hint">Processando fila ' + pend.length + '…</p>';
-    var ok = 0;
-    for (var i = 0; i < pend.length; i++) {
-      var job = pend[i];
-      try {
-        var res = await runScan(job.protocolo);
-        applyScanToCarteira(res);
-        job.status = "done";
-        job.doneAt = new Date().toISOString();
-        job.lastError = null;
-        ok++;
-      } catch (e) {
-        job.status = "pending";
-        job.lastError = String(e && e.message ? e.message : e);
-      }
-      renderScanQueueHint();
-      scheduleSave();
-    }
-    // limpa done antigos (mantém últimos 30)
-    var done = scanQueue.filter(function (j) { return j.status === "done"; });
-    if (done.length > 30) {
-      var keep = done.slice(-30);
-      scanQueue = scanQueue.filter(function (j) { return j.status !== "done"; }).concat(keep);
-    }
-    scheduleSave();
-    renderAll();
-    toast("Fila: " + ok + "/" + pend.length + " processados");
-  }
-
-  function queuePushRow(r) {
-    if (!r || !r.protocolo) return;
-    var d = onlyDigits(r.protocolo);
-    __pendingPush = __pendingPush.filter(function (x) { return onlyDigits(x.protocolo) !== d; });
-    __pendingPush.push({
-      protocolo: r.protocolo,
-      ultimo: r.ultimo || "",
-      prazo: r.prazo || "",
-      obs: r.obs || r.movimentacao || "",
-      status: r.status || "",
-      cliente: r.cliente || "",
-    });
-  }
-  async function pushPendingToSheets(forceAll) {
-    var url = ($("sheetsWebhook") && $("sheetsWebhook").value || "").trim();
-    if (!url) {
-      toast("Cole a URL do Apps Script (escrita)");
-      return { ok: false };
-    }
-    try { localStorage.setItem(LS_WEBHOOK, url); } catch (e) {}
-    var list = forceAll
-      ? rows.filter(function (r) { return onlyDigits(r.protocolo).length === 20 && (r.ultimo || r.prazo); }).map(function (r) {
-          return { protocolo: r.protocolo, ultimo: r.ultimo || "", prazo: r.prazo || "", obs: r.obs || "", status: r.status || "", cliente: r.cliente || "" };
-        })
-      : __pendingPush.slice();
-    if (!list.length) {
-      toast("Nada para enviar (escaneie ou edite retornos antes)");
-      return { ok: false };
-    }
-    if ($("pushStatus")) $("pushStatus").textContent = "Enviando " + list.length + " linha(s)…";
-    if (!window.lexisOffline || !window.lexisOffline.sheetsPush) {
-      toast("Abra pelo EXE (IPC sheetsPush)");
-      return { ok: false };
-    }
-    var res = await window.lexisOffline.sheetsPush({ webhookUrl: url, rows: list });
-    if (res && res.ok) {
-      __pendingPush = [];
-      if ($("pushStatus")) $("pushStatus").textContent = "OK · enviados " + (res.sent || list.length) + " · planilha atualizada (M/N)";
-      toast("Planilha atualizada");
-    } else {
-      if ($("pushStatus")) $("pushStatus").textContent = "Falha: " + ((res && res.error) || "erro");
-      toast("Falha no push Sheets");
-    }
-    return res;
-  }
-
-  function applyScanToCarteira(res) {
-    if (!res || res.error) return 0;
-    var d = onlyDigits(res.cnj);
-    var ex = extractFromDjen(res.djen);
-    var dj = res.datajud || {};
-    var ultimo = ex.ultimo || (dj.ultimoData ? String(dj.ultimoData).slice(0, 10) : null);
-    var prazo = ex.proximo || null;
-    var n = 0;
-    rows.forEach(function (r) {
-      if (onlyDigits(r.protocolo) !== d) return;
-      if (ultimo) r.ultimo = ultimo;
-      if (prazo) r.prazo = prazo;
-      if (ex.ultimoTipo) r.movimentacao = ex.ultimoTipo + (ex.resumo ? " — " + ex.resumo.slice(0, 160) : "");
-      r.datajud_ultimo_nome = dj.ultimoNome || r.datajud_ultimo_nome || null;
-      r.datajud_ultimo_data = dj.ultimoData ? String(dj.ultimoData).slice(0, 10) : (r.datajud_ultimo_data || null);
-      r.djen_ultimo_resumo = (ex.resumo || "").slice(0, 240) || r.djen_ultimo_resumo || null;
-      r.djen_ultimo_tipo = ex.ultimoTipo || r.djen_ultimo_tipo || null;
-      r.scan_at = todayISO();
-      r.tem_atualizacao_pos_retorno = !!(ultimo && r.ultimo && ultimo >= (r.ultimo || ""));
-      var plain = (ex.resumo || "") + " " + (dj.ultimoNome || "");
-      r.indicio_busca_apreensao = /busca\s*e\s*apreens|apreens[aã]o\s*do\s*ve[ií]culo|liminar\s*de\s*busca/i.test(plain);
-      r.datajud_encerrado_tribunal = /arquiv|baix|extin|tr[aâ]nsito/i.test(String(dj.ultimoNome || ""));
-      // heurística leve (não substitui oportunidade-cumprimento do web)
-      if (/cumprimento\s*de\s*senten|art\.?\s*523|penhora/i.test(plain)) {
-        r.status_executivo = r.status_executivo || "indicio_cumprimento";
-        r.cumprimento_pendente_necessario = true;
-      }
-      var bit = [];
-      if (ex.ultimoTipo) bit.push(ex.ultimoTipo);
-      if (ex.prazoDias) bit.push("prazo " + ex.prazoDias + "d úteis → " + (prazo || "?"));
-      if (dj.ultimoNome) bit.push("DataJud: " + dj.ultimoNome);
-      if (r.indicio_busca_apreensao) bit.push("indício BA");
-      if (bit.length) r.obs = bit.join(" · ");
-      n++;
-    });
-    if (n) {
-      rows.forEach(function (r) {
-        if (onlyDigits(r.protocolo) === onlyDigits(res.cnj)) queuePushRow(r);
-      });
-      scheduleSave(); renderAll();
-    }
-    return n;
-  }
-  if ($("btnScanEnqueue")) $("btnScanEnqueue").onclick = function () {
-    var cnj = $("scanCnj").value;
-    if (enqueueScan(cnj, "")) { renderScanQueueHint(); toast("Enfileirado"); }
-    else toast("CNJ inválido ou já na fila");
-  };
-  if ($("btnScanProcessQueue")) $("btnScanProcessQueue").onclick = function () { processScanQueue(15); };
-  // Enfileirar ativos sem scan recente (opcional via lote)
-  $("btnScanOne").onclick = async function () {
-    $("scanOut").textContent = "Consultando…";
-    $("scanView").innerHTML = '<p class="hint">Consultando DataJud + DJEN…</p>';
-    var res = await runScan($("scanCnj").value);
-    window.__lastScan = res;
-    var applied = applyScanToCarteira(res);
-    $("scanOut").textContent = JSON.stringify(res, null, 2);
-    $("scanView").innerHTML = formatScanHtml(res) + (applied ? '<p class="hint" style="color:var(--ok)">Aplicado na carteira: último + prazo atualizados.</p>' : '<p class="hint">CNJ não estava na carteira — só consulta.</p>');
-  };
-  $("btnScanApply").onclick = function () {
-    var n = applyScanToCarteira(window.__lastScan);
-    if (!n) toast("Nenhum processo na carteira com este CNJ — importe a planilha antes");
-    else toast("Atualizado " + n + " registro(s): último + prazo");
-  };
-  $("btnScanBatch").onclick = async function () {
-    var fila = sortUrg(rows.filter(function (r) {
-      return !r.arquivado && computeStatus(r) !== "Arquivado" && onlyDigits(r.protocolo).length === 20;
-    }));
-    if (!fila.length) return toast("Sem CNJs válidos na carteira — carregue a planilha");
-    var max = fila.length;
-    if (max > 80) {
-      if (!confirm("Fila com " + max + " processos. Escanear os 80 mais urgentes agora?")) return;
-      fila = fila.slice(0, 80);
-      max = 80;
-    }
-    $("scanView").innerHTML = '<div class="scan-card"><h3>Fila do scanner · 0/' + max + '</h3><p class="meta">No estilo LexisPredict: um CNJ por vez, atualizando retorno e próximo prazo.</p><div id="scanFilaTable"></div></div>';
-    $("scanOut").textContent = "Fila " + max;
-    var applied = 0;
-    var log = [];
-    for (var i = 0; i < fila.length; i++) {
-      var r0 = fila[i];
-      $("scanView").querySelector("h3").textContent = "Fila do scanner · " + (i + 1) + "/" + max + " · " + (r0.cliente || "").slice(0, 40);
-      var res = await runScan(r0.protocolo);
-      var n = applyScanToCarteira(res);
-      applied += n;
-      var ex = extractFromDjen(res.djen || {});
-      log.unshift({
-        cliente: r0.cliente,
-        cnj: res.cnj || r0.protocolo,
-        ultimo: ex.ultimo || "—",
-        prazo: ex.proximo || "—",
-        oque: ex.ultimoTipo || "—",
-      });
-      var th = '<table><thead><tr><th>Cliente</th><th>CNJ</th><th>Último</th><th>Próx. prazo</th><th>O que houve</th></tr></thead><tbody>';
-      log.slice(0, 40).forEach(function (x) {
-        th += '<tr><td>' + esc(x.cliente) + '</td><td>' + esc(x.cnj) + '</td><td>' + esc(x.ultimo) + '</td><td>' + esc(x.prazo) + '</td><td>' + esc(x.oque) + '</td></tr>';
-      });
-      th += '</tbody></table>';
-      var box = $("scanFilaTable");
-      if (box) box.innerHTML = th;
-      $("scanOut").textContent = "Feitos " + (i + 1) + "/" + max + " · aplicados " + applied;
-    }
-    toast("Fila concluída: " + applied + " atualizações");
-    renderAll();
-  };
-  document.addEventListener("click", function (e) {
-    var a = e.target.closest && e.target.closest("[data-ext]");
-    if (a && window.lexisOffline && window.lexisOffline.openExternal) {
-      e.preventDefault();
-      window.lexisOffline.openExternal(a.getAttribute("data-ext"));
-    }
-  });
-  $("btnVeredito").onclick = async function () {
-    $("verOut").textContent = "…";
-    var res = await runScan($("verCnj").value);
-    $("verOut").textContent = JSON.stringify(res, null, 2);
-  };
-  $("btnSugerir").onclick = function () {
-    var ref = ($("sugRef").value || "").toLowerCase();
-    var r = rows.find(function (x) {
-      return String(x.cliente || "").toLowerCase().indexOf(ref) >= 0 || String(x.protocolo || "").toLowerCase().indexOf(ref) >= 0;
-    });
-    if (!r) return toast("Não achei na carteira");
-    var st = computeStatus(r);
-    var texto =
-      "Olá, " + (r.cliente || "").split(" ")[0] + "! Tudo bem?\n\n" +
-      "Sobre o processo " + (r.protocolo || "") + ": situação na nossa carteira — " + st +
-      (r.prazo ? " (retorno previsto " + r.prazo + ")" : "") + ".\n\n" +
-      (r.obs ? "Observação interna: " + r.obs + "\n\n" : "") +
-      "Qualquer dúvida, estamos à disposição.\nEquipe";
-    $("sugOut").textContent = texto;
-  };
-  $("btnCopySug").onclick = async function () {
-    try { await navigator.clipboard.writeText($("sugOut").textContent || ""); toast("Copiado"); }
-    catch (e) { toast("Copie manualmente"); }
-  };
-  $("btnReport").onclick = function () {
-    var k = kpis();
-    var top = sortUrg(rows.filter(function (r) { return computeStatus(r) === "Vencido"; })).slice(0, 25);
-    var hoje = rows.filter(function (r) { return computeStatus(r) === "É Hoje"; });
-    var t = "══════════════════════════════════════\n";
-    t += " DOSSIÊ OPERACIONAL · LEXIS OFFLINE v5.1\n";
-    t += " Data: " + todayISO() + "\n";
-    t += "══════════════════════════════════════\n\n";
-    t += "RESUMO\n";
-    t += "  Total: " + k.total + " | Ativos: " + k.ativos + " | Vencidos: " + k.venc + "\n";
-    t += "  É hoje: " + k.hoje + " | Arquivados: " + k.arq + " | Sem prazo: " + k.sem + "\n\n";
-    t += "VENCIDOS (top 25)\n";
-    top.forEach(function (r, i) {
-      t += "  " + (i + 1) + ". " + (r.cliente || "—") + " | " + (r.protocolo || "—") + " | prazo " + (r.prazo || "—") + " | dias " + daysUntil(r.prazo) + "\n";
-    });
-    t += "\nÉ HOJE (" + hoje.length + ")\n";
-    hoje.slice(0, 20).forEach(function (r, i) {
-      t += "  " + (i + 1) + ". " + (r.cliente || "—") + " | " + (r.protocolo || "—") + "\n";
-    });
-    t += "\n— Gerado localmente · W1 Capital —\n";
-    $("reportOut").textContent = t;
-  };
-  $("btnCopyReport").onclick = async function () {
-    try { await navigator.clipboard.writeText($("reportOut").textContent || ""); toast("Relatório copiado"); }
-    catch (e) { toast("Copie manualmente"); }
-  };
-  $("btnExportReport").onclick = async function () {
-    var txt = $("reportOut").textContent || "";
-    if (window.lexisOffline && window.lexisOffline.exportCsvFile) {
-      await window.lexisOffline.exportCsvFile(txt, "dossie-operacional.txt");
-      toast("Arquivo salvo");
-    } else {
-      var a = document.createElement("a");
-      a.href = URL.createObjectURL(new Blob([txt], { type: "text/plain" }));
-      a.download = "dossie-operacional.txt"; a.click();
-    }
-  };
-  $("btnAi").onclick = async function () {
-    var prompt = $("aiPrompt").value || "";
-    if (!prompt.trim()) return toast("Escreva a pergunta");
-    var prov = $("aiProv").value;
-    var key = $("aiKey").value || "";
-    if (key) try { localStorage.setItem(LS_KEY, key); } catch (e) {}
-    if (!window.lexisOffline || !window.lexisOffline.aiChat) return toast("Abra pelo EXE");
-    $("aiOut").textContent = "Consultando " + prov + "…";
-    var k = kpis();
-    var ctx = "Carteira local: total=" + k.total + " vencidos=" + k.venc + " ativos=" + k.ativos + " hoje=" + k.hoje;
-    var model = prov === "minimax" ? "MiniMax-M2.5" : (prov === "ollama" ? "qwen2.5:0.5b" : undefined);
-    var res = await window.lexisOffline.aiChat({ provider: prov, apiKey: key, model: model, prompt: ctx + "\n\nPedido:\n" + prompt });
-    $("aiOut").textContent = res.ok ? res.text : ("Erro: " + (res.error || "falhou"));
-  };
-  $("btnNota").onclick = function () {
-    var ref = $("notaRef").value.trim();
-    var text = $("notaTxt").value.trim();
-    if (!text) return toast("Escreva a nota");
-    notes.push({ ref: ref || "—", text: text, at: new Date().toLocaleString("pt-BR") });
-    $("notaTxt").value = ""; scheduleSave(); renderAll(); toast("Nota salva");
-  };
-
-  document.body.addEventListener("click", function (e) {
-    var btn = e.target.closest("[data-act]");
-    if (!btn) return;
-    var id = btn.getAttribute("data-id");
-    var act = btn.getAttribute("data-act");
-    var r = rows.find(function (x) { return x.id === id; });
-    if (!r) return;
-    if (act === "atend") {
-      editId = id;
-      $("modalCliente").textContent = (r.cliente || "—") + " · " + (r.protocolo || "");
-      $("atendPrazo").value = r.prazo || "";
-      $("atendObs").value = r.obs || "";
-      $("atendEncerrar").checked = !!r.arquivado;
-      $("modalAtend").classList.add("show");
-    }
-    if (act === "wa") {
-      var n = onlyDigits(r.telefone);
-      if (n.length <= 11) n = "55" + n;
-      var url = "https://wa.me/" + n;
-      if (window.lexisOffline && window.lexisOffline.openExternal) window.lexisOffline.openExternal(url);
-      else window.open(url);
-    }
-    if (act === "scan") {
-      nav("scanner");
-      $("scanCnj").value = r.protocolo || "";
-    }
-  });
-  $("atendCancel").onclick = function () { $("modalAtend").classList.remove("show"); };
-  $("atendSave").onclick = function () {
-    var r = rows.find(function (x) { return x.id === editId; });
-    if (!r) return;
-    // NÃO sobrescrever dono (created_by); só registrar atendimento
-    if (!r.created_by) r.created_by = r.created_by || r.atendente || "import";
-    r.prazo = $("atendPrazo").value || null;
-    r.obs = $("atendObs").value || "";
-    r.ultimo = todayISO();
-    r.atendido_por = r.atendido_por_operador || "operador-local";
-    r.atendido_em = new Date().toISOString();
-    r.arquivado = $("atendEncerrar").checked;
-    if (r.arquivado) r.status = "Arquivado";
-    queuePushRow(r);
-    scheduleSave();
-    $("modalAtend").classList.remove("show");
-    renderAll();
-    toast("Atendimento salvo · dono preservado · retorno " + (r.prazo || "—"));
-  };
-
-  ["qTarefas", "qProc", "filtroTarefas", "filtroProc"].forEach(function (id) {
-    var el = $(id);
-    if (el) el.addEventListener("input", renderAll);
-    if (el) el.addEventListener("change", renderAll);
-  });
-
-  if (!window.lexisOffline) {
-    toast("Abra pelo Lexis Gabinete.exe (não no Chrome)");
-  }
-  try {
-    var u = localStorage.getItem(LS_URL); if (u) $("sheetsUrl").value = u;
-    var wh = localStorage.getItem(LS_WEBHOOK); if (wh && $("sheetsWebhook")) $("sheetsWebhook").value = wh;
-    var key = localStorage.getItem(LS_KEY); if (key) $("aiKey").value = key;
-    if (window.lexisOffline && window.lexisOffline.secretsStatus) {
-      window.lexisOffline.secretsStatus().then(function (st) {
-        if (st && st.hasKey) {
-          var hint = document.querySelector("#p-ia .hint");
-          if (hint) hint.innerHTML = "MiniMax: chave carregada de <b>lexis-secrets.json</b> (ao lado do EXE). Pode deixar o campo vazio.";
-        }
-      }).catch(function () {});
-    }
-  } catch (e) {}
-
-  loadFromDisk().then(function () {
-    if (window.lexisOffline && window.lexisOffline.getPaths) {
-      window.lexisOffline.getPaths().then(function (p) {
-        if ($("pathInfo")) $("pathInfo").textContent = "DB: " + ((p && p.db) || "—");
-      });
-    }
-  });
-  toast("Lexis Offline v5.1.9 — fila de scan persistente");
-})();
-</script>
+<script src="app.js"></script>
 </body>
 </html>

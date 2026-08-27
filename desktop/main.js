@@ -1,12 +1,13 @@
 /**
- * Lexis Offline Edition v5.1
- * Offline-first + DataJud/DJEN + DB em arquivo + IA opcional (Ollama/OpenRouter)
+ * Lexis Gabinete v6.0
+ * Offline-first + DataJud/DJEN + DB em arquivo + Sync Google Sheets (2 vias)
  */
 const { app, BrowserWindow, Menu, dialog, ipcMain, shell, session, nativeTheme } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const https = require("https");
 const http = require("http");
+const zlib = require("zlib");
 
 const GABINETE_URL = "https://private-assecom.vercel.app";
 const PARTITION = "persist:lexis-offline-v5.1";
@@ -47,12 +48,16 @@ function fetchBuffer(url, opts, maxRedirects) {
   return new Promise((resolve, reject) => {
     const lib = url.startsWith("https") ? https : http;
     const u = new URL(url);
+    const hdrs = Object.assign({}, opts.headers || {});
+    if (opts.body && hdrs["Content-Length"] === undefined) {
+      hdrs["Content-Length"] = Buffer.byteLength(String(opts.body));
+    }
     const reqOpts = {
       hostname: u.hostname,
       port: u.port || (url.startsWith("https") ? 443 : 80),
       path: u.pathname + u.search,
       method: opts.method || "GET",
-      headers: opts.headers || {},
+      headers: hdrs,
       timeout: opts.timeout || 60000,
     };
     const req = lib.request(reqOpts, (res) => {
@@ -60,17 +65,33 @@ function fetchBuffer(url, opts, maxRedirects) {
         const next = res.headers.location.startsWith("http")
           ? res.headers.location
           : new URL(res.headers.location, url).href;
+        if (String(next).toLowerCase().indexOf("accounts.google") > -1) {
+          const c2 = [];
+          res.on("data", (cd) => c2.push(cd));
+          res.on("end", () => resolve({ status: res.statusCode, body: Buffer.concat(c2), headers: res.headers, authRedirect: true }));
+          return;
+        }
         res.resume();
+        if ((opts.method === "POST" || opts.method === "PUT") &&
+            (res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 303)) {
+          const fol = Object.assign({}, opts, { method: "GET", body: null, headers: Object.assign({}, opts.headers || {}) });
+          delete fol.headers["Content-Length"];
+          return resolve(fetchBuffer(next, fol, maxRedirects - 1));
+        }
         return resolve(fetchBuffer(next, opts, maxRedirects - 1));
       }
       const chunks = [];
       res.on("data", (c) => chunks.push(c));
       res.on("end", () => {
-        resolve({
-          status: res.statusCode,
-          body: Buffer.concat(chunks),
-          headers: res.headers,
-        });
+        const buf = Buffer.concat(chunks);
+        const enc = String(res.headers["content-encoding"] || "").toLowerCase();
+        if (enc.indexOf("gzip") >= 0 || enc.indexOf("deflate") >= 0) {
+          zlib.gunzip(buf, (err, out) => {
+            resolve({ status: res.statusCode, body: err ? buf : out, headers: res.headers });
+          });
+        } else {
+          resolve({ status: res.statusCode, body: buf, headers: res.headers });
+        }
       });
     });
     req.on("error", reject);
@@ -99,16 +120,22 @@ function loadLocalSecrets() {
   return base;
 }
 
-function sheetsToCsvUrl(raw) {
-  let u = String(raw || "").trim();
+function sheetsCsvCandidates(raw) {
+  const u = String(raw || "").trim();
   const m = u.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-  if (m) {
-    let gid = "0";
-    const g = u.match(/[?#&]gid=([0-9]+)/);
-    if (g) gid = g[1];
-    return "https://docs.google.com/spreadsheets/d/" + m[1] + "/export?format=csv&gid=" + gid;
-  }
-  return u;
+  if (!m) return [u];
+  const id = m[1];
+  const g = u.match(/[?#&]gid=([0-9]+)/);
+  const hasGid = !!g;
+  const gid = g ? g[1] : "0";
+  const suf = hasGid ? "&gid=" + gid : "";
+  // Sem gid no link (?usp=sharing perde o gid), o /export sem gid devolve a
+  // primeira aba — e /export&gid=0 pode dar 400 se gid 0 não existir.
+  const cands = [];
+  cands.push("https://docs.google.com/spreadsheets/d/" + id + "/export?format=csv" + suf);
+  cands.push("https://docs.google.com/spreadsheets/d/" + id + "/gviz/tq?tqx=out:csv" + suf);
+  cands.push("https://docs.google.com/spreadsheets/d/" + id + "/pub?output=csv" + suf);
+  return cands;
 }
 
 function resolveAlias(cnj) {
@@ -125,27 +152,42 @@ function maskCnj(digits) {
 }
 
 ipcMain.handle("lexis-fetch-text", async (_e, url) => {
-  try {
-    const finalUrl = sheetsToCsvUrl(url);
-    const r = await fetchBuffer(finalUrl, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 LexisOffline/4.0",
-        Accept: "text/csv,text/plain,*/*",
-      },
-    });
-    if (r.status !== 200) return { ok: false, error: "HTTP " + r.status };
-    return { ok: true, text: r.body.toString("utf8"), url: finalUrl };
-  } catch (e) {
-    return { ok: false, error: e.message || String(e) };
+  const candidates = sheetsCsvCandidates(url);
+  let lastErr = "";
+  for (const finalUrl of candidates) {
+    try {
+      const r = await fetchBuffer(finalUrl, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 LexisOffline/4.0",
+          Accept: "text/csv,text/plain,*/*",
+        },
+      });
+      if (r.status === 200) {
+        const t = r.body.toString("utf8");
+        if (t && t.trim().length > 3 && !/<html|<body|<head/i.test(t.slice(0, 500))) {
+          return { ok: true, text: t, url: finalUrl };
+        }
+        lastErr = "resposta sem CSV (publique o link)";
+      } else {
+        lastErr = "HTTP " + r.status;
+      }
+    } catch (e) {
+      lastErr = e.message || String(e);
+    }
   }
+  return { ok: false, error: lastErr || "Falha ao baixar planilha" };
 });
 
 ipcMain.handle("lexis-fetch-json", async (_e, url, opts) => {
   try {
-    const r = await fetchBuffer(url, {
+    let finalUrl = String(url || "").trim();
+    if (finalUrl && /^https:\/\/script\.google\.com\/macros\/s\//.test(finalUrl)) {
+      finalUrl = finalUrl.replace(/\/dev(\b|$)/, "/exec");
+    }
+    const r = await fetchBuffer(finalUrl, {
       method: (opts && opts.method) || "GET",
       headers: Object.assign(
-        { "User-Agent": "Mozilla/5.0 LexisOffline/4.0", Accept: "application/json" },
+        { "User-Agent": "Mozilla/5.0 LexisOffline/6.0", Accept: "application/json" },
         (opts && opts.headers) || {}
       ),
       body: opts && opts.body,
@@ -154,9 +196,12 @@ ipcMain.handle("lexis-fetch-json", async (_e, url, opts) => {
     const text = r.body.toString("utf8");
     let json = null;
     try { json = JSON.parse(text); } catch (_) {}
-    return { ok: r.status >= 200 && r.status < 300, status: r.status, text, json };
+    if (r.authRedirect) {
+      return { ok: false, http: r.status, auth: true, json: null, raw: "Google redirecionou para login. Verifique se a implantação web está com acesso 'Qualquer pessoa' (sem 'com o link')." };
+    }
+    return { ok: r.status >= 200 && r.status < 300 && !!json, http: r.status, text, json, raw: text.slice(0, 500) };
   } catch (e) {
-    return { ok: false, error: e.message || String(e) };
+    return { ok: false, http: 0, error: e.message || String(e), raw: "" };
   }
 });
 
@@ -285,9 +330,30 @@ ipcMain.handle("lexis-djen", async (_e, cnj, opts) => {
 ipcMain.handle("lexis-db-load", async () => {
   try {
     const p = dbPath();
-    if (!fs.existsSync(p)) return { ok: true, data: null, path: p };
-    const raw = fs.readFileSync(p, "utf8");
-    return { ok: true, data: JSON.parse(raw), path: p };
+    let src = p;
+    if (!fs.existsSync(src)) {
+      const appData = app.getPath("appData");
+      const legacy = [
+        path.join(appData, "lexis-gabinete-desktop", "lexis-offline-db.json"),
+        path.join(appData, "lexis-offline", "lexis-offline-db.json"),
+        path.join(appData, "lexis-offline-edition", "lexis-offline-db.json"),
+        path.join(appData, "lexis-offline-legacy-shell", "lexis-offline-db.json"),
+        path.join(path.dirname(process.execPath), "lexis-offline-db.json"),
+      ];
+      for (const lp of legacy) {
+        if (fs.existsSync(lp)) { src = lp; break; }
+      }
+    }
+    if (!fs.existsSync(src)) return { ok: true, data: null, path: p, source: null };
+    const raw = fs.readFileSync(src, "utf8");
+    const data = JSON.parse(raw);
+    if (src !== p) {
+      try {
+        fs.mkdirSync(path.dirname(p), { recursive: true });
+        fs.writeFileSync(p, raw, "utf8");
+      } catch (_) {}
+    }
+    return { ok: true, data, path: p, source: src };
   } catch (e) {
     return { ok: false, error: e.message, path: dbPath() };
   }
@@ -297,11 +363,12 @@ ipcMain.handle("lexis-db-save", async (_e, data) => {
   try {
     const p = dbPath();
     fs.mkdirSync(path.dirname(p), { recursive: true });
-    fs.writeFileSync(p, JSON.stringify(data, null, 2), "utf8");
-    // também espelho ao lado do exe (se possível)
+    // compacto (um espaço por nível) = ~5x mais rápido que pretty-print; evita travar com carteiras grandes
+    fs.writeFileSync(p, JSON.stringify(data, null, 1), "utf8");
+    // espelho ao lado do exe também compacto (se possível)
     try {
       const mirror = path.join(path.dirname(process.execPath), "lexis-offline-db.json");
-      if (!process.execPath.includes("node")) fs.writeFileSync(mirror, JSON.stringify(data, null, 2), "utf8");
+      if (!process.execPath.includes("node")) fs.writeFileSync(mirror, JSON.stringify(data, null, 1), "utf8");
     } catch (_) {}
     return { ok: true, path: p };
   } catch (e) {
@@ -606,7 +673,7 @@ function createMainWindow() {
   const ses = session.fromPartition(PARTITION, { cache: true });
   mainWindow = new BrowserWindow({
     width: 1480, height: 920, minWidth: 1100, minHeight: 700, show: false,
-    backgroundColor: "#09090b", title: "Lexis Offline Edition 4.0",
+    backgroundColor: "#0f172a", title: "Lexis Gabinete 6.0",
     webPreferences: {
       preload: appPath("preload.js"),
       contextIsolation: true,

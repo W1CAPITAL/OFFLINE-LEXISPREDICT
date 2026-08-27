@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Chaves no servidor — Lexis Gabinete</title>
+  <style>
+    :root {
+      --bg: #0b0b0c; --elev: #141416; --fg: #f3f1eb; --muted: #8e8b84;
+      --accent: #d8d4cb; --line: #2c2c30; --ok: #4a8f73;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh; background: var(--bg); color: var(--fg);
+      font-family: "Segoe UI", system-ui, sans-serif;
+      padding: 48px 24px; -webkit-font-smoothing: antialiased;
+    }
+    .wrap { max-width: 640px; margin: 0 auto; }
+    h1 {
+      font-family: Georgia, serif; font-size: 32px; font-weight: 600;
+      letter-spacing: -0.02em; margin-bottom: 12px;
+    }
+    .lead { color: var(--muted); font-size: 15px; line-height: 1.55; margin-bottom: 32px; max-width: 48ch; }
+    .steps { display: grid; gap: 12px; margin-bottom: 32px; }
+    .step {
+      display: grid; grid-template-columns: 40px 1fr; gap: 14px;
+      padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--elev);
+    }
+    .n {
+      width: 40px; height: 40px; border-radius: 10px; background: #1c1c1f;
+      display: grid; place-items: center; font-weight: 600; color: var(--accent);
+    }
+    .step h2 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+    .step p { font-size: 13px; color: var(--muted); line-height: 1.45; }
+    .note {
+      padding: 16px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--ok) 35%, var(--line));
+      background: color-mix(in srgb, var(--ok) 12%, var(--elev));
+      font-size: 13px; line-height: 1.5; color: #c5d9ce; margin-bottom: 28px;
+    }
+    a.btn {
+      display: inline-flex; align-items: center; height: 44px; padding: 0 18px;
+      border-radius: 10px; background: var(--accent); color: #0b0b0c;
+      font-size: 14px; font-weight: 600; text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Por que não copiamos as chaves</h1>
+    <p class="lead">
+      No Vercel, variáveis marcadas como Sensitive não podem ser lidas de volta.
+      Este programa também não as guarda. O caminho é o login que você já usa.
+    </p>
+    <div class="steps">
+      <div class="step">
+        <div class="n">1</div>
+        <div>
+          <h2>Você abre o Lexis Gabinete neste computador</h2>
+          <p>É só a janela. Não há arquivo .env nem chave colada no disco.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="n">2</div>
+        <div>
+          <h2>Você entra com o mesmo usuário de sempre</h2>
+          <p>A sessão fica nos cookies, como no navegador — não no arquivo do EXE.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="n">3</div>
+        <div>
+          <h2>O servidor Vercel usa as chaves e devolve o resultado</h2>
+          <p>Evolution, Supabase, DataJud e scripts rodam lá. O desktop só mostra a tela.</p>
+        </div>
+      </div>
+    </div>
+    <div class="note">
+      Salesforce, HubSpot e a maioria dos CRMs enterprise usam o mesmo modelo:
+      o cliente nativo é uma casca; a operação e os segredos ficam no servidor.
+    </div>
+    <a class="btn" href="https://private-assecom.vercel.app">Voltar ao gabinete</a>
+  </div>
+</body>
+</html>
