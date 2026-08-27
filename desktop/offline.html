@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Lexis Offline v5.1.7</title>
+<style>
+:root {
+  --bg: #0b1220;
+  --bg2: #111827;
+  --card: #151f32;
+  --border: rgba(148,163,184,.18);
+  --text: #e8eef9;
+  --muted: #94a3b8;
+  --accent: #38bdf8;
+  --accent2: #818cf8;
+  --ok: #34d399;
+  --warn: #fbbf24;
+  --danger: #f87171;
+  --side-w: 240px;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  background: radial-gradient(1200px 600px at 10% -10%, #1e293b 0%, var(--bg) 45%);
+  color: var(--text); min-height: 100vh;
+}
+.app { display: flex; min-height: 100vh; }
+.side {
+  width: var(--side-w); flex-shrink: 0; background: linear-gradient(180deg, #0f172a, #0b1220);
+  border-right: 1px solid var(--border); padding: 1rem .75rem; display: flex; flex-direction: column; gap: .2rem;
+}
+.brand b { display: block; font-size: 1rem; letter-spacing: .02em; }
+.brand span { font-size: .7rem; color: var(--accent); font-weight: 700; }
+.brand small { display: block; color: var(--muted); font-size: .65rem; margin-top: .2rem; }
+.nav-sec { font-size: .58rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: .85rem .4rem .25rem; font-weight: 700; }
+.nav {
+  text-align: left; background: transparent; border: 0; color: var(--text); padding: .55rem .7rem;
+  border-radius: .55rem; cursor: pointer; font-size: .8rem; font-weight: 600;
+}
+.nav:hover { background: rgba(56,189,248,.08); }
+.nav.active { background: linear-gradient(90deg, rgba(56,189,248,.2), rgba(129,140,248,.12)); color: #fff; }
+.side-foot { margin-top: auto; font-size: .62rem; color: var(--muted); padding: .75rem .4rem; line-height: 1.4; }
+.main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.top {
+  display: flex; align-items: center; gap: .75rem; padding: .85rem 1.25rem;
+  border-bottom: 1px solid var(--border); background: rgba(15,23,42,.75); backdrop-filter: blur(8px);
+}
+.top h1 { margin: 0; font-size: 1.05rem; font-weight: 800; }
+.pill { font-size: .68rem; font-weight: 700; padding: .25rem .55rem; border-radius: 999px; background: rgba(56,189,248,.15); color: var(--accent); }
+.pill.ok { background: rgba(52,211,153,.15); color: var(--ok); }
+.content { padding: 1rem 1.25rem 2rem; overflow: auto; flex: 1; }
+.panel { display: none; }
+.panel.active { display: block; }
+.card {
+  background: var(--card); border: 1px solid var(--border); border-radius: 1rem;
+  padding: 1.1rem 1.2rem; margin-bottom: 1rem; box-shadow: 0 8px 30px rgba(0,0,0,.25);
+}
+.card h2 { margin: 0 0 .65rem; font-size: .95rem; font-weight: 800; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: .65rem; margin-bottom: 1rem; }
+.kpi {
+  background: linear-gradient(145deg, #1a2438, #121a2b); border: 1px solid var(--border);
+  border-radius: .85rem; padding: .85rem;
+}
+.kpi b { display: block; font-size: 1.35rem; font-weight: 800; }
+.kpi span { font-size: .68rem; color: var(--muted); font-weight: 600; text-transform: uppercase; }
+.btn {
+  border: 1px solid var(--border); background: #1e293b; color: var(--text);
+  border-radius: .55rem; padding: .45rem .75rem; font-size: .75rem; font-weight: 700; cursor: pointer;
+}
+.btn:hover { border-color: var(--accent); }
+.btn-primary { background: linear-gradient(135deg, #0ea5e9, #6366f1); border: 0; color: #fff; }
+.btn-ok { background: rgba(52,211,153,.15); border-color: rgba(52,211,153,.35); color: var(--ok); }
+.btn-danger { background: rgba(248,113,113,.12); border-color: rgba(248,113,113,.35); color: var(--danger); }
+.toolbar { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin: .5rem 0 .75rem; }
+input, select, textarea {
+  background: #0b1220; border: 1px solid var(--border); color: var(--text);
+  border-radius: .55rem; padding: .5rem .65rem; font-size: .8rem; width: 100%;
+}
+input:focus, select:focus, textarea:focus { outline: 2px solid rgba(56,189,248,.35); border-color: var(--accent); }
+table { width: 100%; border-collapse: collapse; font-size: .78rem; }
+th { text-align: left; color: var(--muted); font-size: .65rem; text-transform: uppercase; padding: .5rem; border-bottom: 1px solid var(--border); }
+td { padding: .55rem .5rem; border-bottom: 1px solid rgba(148,163,184,.08); vertical-align: top; }
+.badge { font-size: .62rem; font-weight: 800; padding: .15rem .4rem; border-radius: .35rem; }
+.b-venc { background: rgba(248,113,113,.2); color: var(--danger); }
+.b-hoje { background: rgba(251,191,36,.2); color: var(--warn); }
+.b-ok { background: rgba(52,211,153,.15); color: var(--ok); }
+.b-arq { background: rgba(148,163,184,.15); color: var(--muted); }
+.field { margin-bottom: .65rem; }
+.field label { display: block; font-size: .65rem; font-weight: 700; color: var(--muted); margin-bottom: .25rem; text-transform: uppercase; }
+.hint { font-size: .72rem; color: var(--muted); line-height: 1.45; margin: .35rem 0; }
+.mono {
+  font-family: ui-monospace, Consolas, monospace; font-size: .72rem; white-space: pre-wrap;
+  background: #0a0f1a; border: 1px solid var(--border); border-radius: .65rem; padding: .85rem; max-height: 48vh; overflow: auto;
+}
+.scan-card {
+  background: #0f172a; border: 1px solid var(--border); border-radius: .75rem; padding: .85rem; margin-bottom: .65rem;
+}
+.scan-card h3 { margin: 0 0 .4rem; font-size: .85rem; }
+.scan-card .meta { color: var(--muted); font-size: .72rem; margin-bottom: .35rem; }
+.toast {
+  position: fixed; bottom: 1.25rem; right: 1.25rem; background: #1e293b; border: 1px solid var(--accent);
+  color: #fff; padding: .65rem 1rem; border-radius: .65rem; opacity: 0; pointer-events: none; transition: .25s; z-index: 50;
+}
+.toast.show { opacity: 1; }
+.modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none; align-items: center; justify-content: center; z-index: 40; }
+.modal-bg.show { display: flex; }
+.modal { background: var(--card); border: 1px solid var(--border); border-radius: 1rem; padding: 1.1rem; width: min(420px, 100%); box-shadow: 0 20px 50px rgba(0,0,0,.5); }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: .65rem; }
+@media (max-width: 900px) { .side { display: none; } .grid2 { grid-template-columns: 1fr; } }
+.empty { text-align: center; padding: 2rem; color: var(--muted); }
+.empty b { display: block; color: var(--text); margin-bottom: .35rem; }
+.row-actions { display: flex; gap: .3rem; flex-wrap: wrap; }
+.row-actions .btn { padding: .28rem .45rem; font-size: .58rem; }
+.version-pill { font-size: .62rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <b>W1 · Lexis</b>
+      <span>Offline v5.1.7 · MiniMax</span>
+      <small>Carteira · Tribunal · IA leve</small>
+    </div>
+    <div class="nav-sec">Hoje</div>
+    <button type="button" class="nav active" data-nav="painel">Painel</button>
+    <button type="button" class="nav" data-nav="tarefas">Tarefas / Fila</button>
+    <button type="button" class="nav" data-nav="agenda">Agenda</button>
+    <div class="nav-sec">Carteira</div>
+    <button type="button" class="nav" data-nav="processos">Processos</button>
+    <button type="button" class="nav" data-nav="notas">Notas</button>
+    <div class="nav-sec">Tribunal</div>
+    <button type="button" class="nav" data-nav="scanner">Scanner DataJud+DJEN</button>
+    <button type="button" class="nav" data-nav="veredito">Veredito</button>
+    <button type="button" class="nav" data-nav="sugerir">Sugerir resposta</button>
+    <div class="nav-sec">Gestão</div>
+    <button type="button" class="nav" data-nav="report">Report / Dossiê</button>
+    <button type="button" class="nav" data-nav="planob">Plano B · Planilha</button>
+    <button type="button" class="nav" data-nav="ia">Assistente IA</button>
+    <button type="button" class="nav" data-nav="config">Config</button>
+    <div class="side-foot">Salvo neste PC<br>Ctrl+1 online · Ctrl+2 offline<br>© W1 Capital</div>
+  </aside>
+  <div class="main">
+    <header class="top">
+      <h1 id="pageTitle">Painel</h1>
+      <span class="pill ok" id="countPill">0 proc.</span>
+      <button type="button" class="btn" id="btnSaveDisk">Salvar no PC</button>
+      <button type="button" class="btn btn-primary" id="btnGotoImport">Importar</button>
+    </header>
+    <div class="content">
+      <!-- PAINEL -->
+      <section class="panel active" id="p-painel">
+        <div class="kpis" id="kpiRow"></div>
+        <div class="card">
+          <h2>Fila crítica (vencidos + hoje)</h2>
+          <div class="table-wrap" id="critTable"></div>
+        </div>
+      </section>
+      <!-- TAREFAS -->
+      <section class="panel" id="p-tarefas">
+        <div class="toolbar">
+          <input id="qTarefas" placeholder="Buscar cliente ou CNJ…" style="flex:1;min-width:180px"/>
+          <select id="filtroTarefas" style="width:auto">
+            <option value="trabalho" selected>Trabalho (ativos sem arquivar)</option>
+            <option value="semprazo">Sem prazo de retorno</option>
+            <option value="fila">Fila (vencido + hoje)</option>
+            <option value="vencido">Só vencidos</option>
+            <option value="hoje">É hoje</option>
+            <option value="pendente">No prazo</option>
+            <option value="todos">Todos</option>
+          </select>
+        </div>
+        <div class="table-wrap" id="tarefasTable"></div>
+      </section>
+      <!-- AGENDA -->
+      <section class="panel" id="p-agenda">
+        <div class="hint">Retornos da semana (próximo retorno). Clique Atender para remarcar.</div>
+        <div class="kpis" id="agendaKpis"></div>
+        <div class="table-wrap" id="agendaTable"></div>
+      </section>
+      <!-- PROCESSOS -->
+      <section class="panel" id="p-processos">
+        <div class="toolbar">
+          <input id="qProc" placeholder="Buscar…" style="flex:1;min-width:180px"/>
+          <select id="filtroProc" style="width:auto">
+            <option value="ativos">Ativos</option>
+            <option value="todos">Todos</option>
+            <option value="arq">Arquivados</option>
+            <option value="vencido">Vencidos</option>
+          </select>
+          <button type="button" class="btn" id="btnExportCsv">Exportar CSV</button>
+        </div>
+        <div class="table-wrap" id="procTable"></div>
+      </section>
+      <!-- NOTAS -->
+      <section class="panel" id="p-notas">
+        <div class="card">
+          <h2>Nova nota</h2>
+          <div class="field"><label>Cliente / CNJ</label><input id="notaRef" placeholder="Nome ou protocolo"/></div>
+          <div class="field"><label>Texto</label><textarea id="notaTxt" rows="3"></textarea></div>
+          <button type="button" class="btn btn-primary" id="btnNota">Salvar nota</button>
+        </div>
+        <div class="card"><h2>Notas salvas</h2><div id="notasList" class="hint">Nenhuma nota ainda.</div></div>
+      </section>
+      <!-- SCANNER -->
+      <section class="panel" id="p-scanner">
+        <div class="card">
+          <h2>Scanner DataJud + DJEN · port LexisPredict</h2>
+          <p class="hint">Consulta tribunal + diário. Aplica <b>último retorno</b> e <b>próximo prazo</b> na carteira local. DataJud pode vir vazio em processo novo — DJEN costuma ter o despacho.</p>
+          <div class="toolbar">
+            <input id="scanCnj" placeholder="CNJ completo (20 dígitos)" style="flex:1"/>
+            <button type="button" class="btn btn-primary" id="btnScanOne">Consultar 1</button>
+            <button type="button" class="btn btn-ok" id="btnScanApply">Aplicar na carteira</button>
+            <button type="button" class="btn" id="btnScanBatch">Fila completa (estilo LexisPredict)</button>
+          </div>
+          <div id="scanView"></div>
+          <details style="margin-top:.5rem"><summary class="hint">JSON bruto</summary>
+            <div class="mono" id="scanOut">Aguardando…</div>
+          </details>
+        </div>
+      </section>
+      <!-- VEREDITO -->
+      <section class="panel" id="p-veredito">
+        <div class="card">
+          <h2>Veredito rápido</h2>
+          <div class="toolbar">
+            <input id="verCnj" placeholder="CNJ completo" style="flex:1"/>
+            <button type="button" class="btn btn-primary" id="btnVeredito">Buscar</button>
+          </div>
+          <div class="mono" id="verOut">—</div>
+        </div>
+      </section>
+      <!-- SUGERIR -->
+      <section class="panel" id="p-sugerir">
+        <div class="card">
+          <h2>Sugerir resposta (cliente)</h2>
+          <div class="field"><label>CNJ ou cliente na carteira</label><input id="sugRef"/></div>
+          <button type="button" class="btn btn-primary" id="btnSugerir">Gerar script</button>
+          <div class="mono" id="sugOut" style="margin-top:.65rem">—</div>
+          <button type="button" class="btn" id="btnCopySug" style="margin-top:.5rem">Copiar</button>
+        </div>
+      </section>
+      <!-- REPORT -->
+      <section class="panel" id="p-report">
+        <div class="card">
+          <h2>Dossiê operacional</h2>
+          <div class="toolbar">
+            <button type="button" class="btn btn-primary" id="btnReport">Gerar relatório</button>
+            <button type="button" class="btn" id="btnCopyReport">Copiar</button>
+            <button type="button" class="btn" id="btnExportReport">Salvar TXT</button>
+          </div>
+          <div class="mono" id="reportOut">Clique em Gerar relatório.</div>
+        </div>
+      </section>
+      <!-- PLANO B -->
+      <section class="panel" id="p-planob">
+        <div class="card">
+          <h2>1 · Link da planilha Google</h2>
+          <p class="hint">Arquivo → Compartilhar → Qualquer pessoa com o link. Cole a URL completa (com ou sem /edit).</p>
+          <div class="field"><label>URL da planilha</label>
+            <input type="url" id="sheetsUrl" placeholder="https://docs.google.com/spreadsheets/d/1JHiy3SbHRd5di5U9Zx4yvKrCSKtaOnFQdiZo0RDY9O0/edit?gid=2042875891"/>
+          </div>
+          <button type="button" class="btn btn-primary" id="btnSheets">Carregar planilha</button>
+          <p class="hint" id="sheetsStatus"></p>
+          <p class="hint">A planilha Google é <b>somente leitura</b> por link. O que você editar no app fica no PC; use <b>Exportar CSV</b> e substitua a aba na planilha (Arquivo → Importar) para refletir prazos/últimos retornos.</p>
+          <div class="toolbar">
+            <button type="button" class="btn btn-primary" id="btnExportSheetCsv">Exportar CSV para a planilha</button>
+          </div>
+        </div>
+        <div class="card">
+          <h2>2 · Colar CSV</h2>
+          <textarea id="csvPaste" rows="5" placeholder="Cole linhas CSV aqui…"></textarea>
+          <button type="button" class="btn btn-primary" id="btnPaste" style="margin-top:.5rem">Importar colado</button>
+        </div>
+        <div class="card">
+          <h2>3 · Arquivo local</h2>
+          <input type="file" id="fileCsv" accept=".csv,text/csv,text/plain"/>
+        </div>
+        <div class="card">
+          <h2>4 · Exportar / limpar</h2>
+          <div class="toolbar">
+            <button type="button" class="btn" id="btnSaveDisk2">Salvar no PC</button>
+            <button type="button" class="btn" id="btnLoadDisk">Recarregar do PC</button>
+            <button type="button" class="btn" id="btnClear" style="color:var(--danger)">Limpar carteira</button>
+            <button type="button" class="btn" id="btnOpenCsvFolder">Exportar CSV editável</button>
+          </div>
+          <p class="hint">Editar no Excel: exporte CSV → edite → reimporte (colar ou arquivo). O app grava também em lexis-offline-db.json.</p>
+        </div>
+      </section>
+      <!-- IA -->
+      <section class="panel" id="p-ia">
+        <div class="card">
+          <h2>Assistente IA (PC fraco)</h2>
+          <p class="hint">MiniMax Cloud: cole a chave sk-api-… abaixo (internet). Ollama local: modelo qwen2.5:0.5b na porta <b>11434</b> (PC fraco).</p>
+          <div class="field"><label>Provider</label>
+            <select id="aiProv"><option value="minimax">MiniMax Cloud</option><option value="ollama">Ollama local</option><option value="openrouter">OpenRouter</option></select>
+          </div>
+          <div class="field"><label>API key (MiniMax / OpenRouter)</label><input id="aiKey" type="password" placeholder="sk-api-… (MiniMax) ou sk-or-…"/></div>
+          <div class="field"><label>Pergunta</label><textarea id="aiPrompt" rows="3" placeholder="Ex: quantos vencidos tenho? resuma a fila"></textarea></div>
+          <button type="button" class="btn btn-primary" id="btnAi">Perguntar</button>
+          <div class="mono" id="aiOut" style="margin-top:.65rem">—</div>
+        </div>
+      </section>
+      <!-- CONFIG -->
+      <section class="panel" id="p-config">
+        <div class="card">
+          <h2>Sobre</h2>
+          <p class="hint" id="aboutTxt">Lexis Offline v5.1.1 — botões e dados locais. DataJud/DJEN precisam de internet. Abra sempre pelo EXE.</p>
+          <p class="hint" id="pathInfo">DB: —</p>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modalAtend">
+  <div class="modal">
+    <h3 style="margin:0 0 .5rem;font-size:1rem">Registrar atendimento</h3>
+    <p class="hint" id="modalCliente">—</p>
+    <div class="field"><label>Próximo retorno</label><input type="date" id="atendPrazo"/></div>
+    <div class="field"><label>Observação</label><textarea id="atendObs" rows="2"></textarea></div>
+    <div class="field"><label><input type="checkbox" id="atendEncerrar"/> Arquivar / encerrar na carteira</label></div>
+    <div class="toolbar">
+      <button type="button" class="btn" id="atendCancel">Cancelar</button>
+      <button type="button" class="btn btn-primary" id="atendSave">Salvar</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  "use strict";
+  var rows = [];
+  var notes = [];
+  var editId = null;
+  var LS_URL = "lexis_offline_sheets_url";
+  var LS_KEY = "lexis_offline_ai_key";
+  var titles = {
+    painel: "Painel", tarefas: "Tarefas / Fila", agenda: "Agenda", processos: "Processos",
+    notas: "Notas", scanner: "Scanner DataJud+DJEN", veredito: "Veredito", sugerir: "Sugerir resposta",
+    report: "Report / Dossiê", planob: "Plano B · Planilha", ia: "Assistente IA", config: "Config"
+  };
+
+  function $(id) { return document.getElementById(id); }
+  function toast(msg) {
+    var t = $("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    setTimeout(function () { t.classList.remove("show"); }, 2800);
+  }
+  function todayISO() {
+    var d = new Date();
+    var z = function (n) { return n < 10 ? "0" + n : "" + n; };
+    return d.getFullYear() + "-" + z(d.getMonth() + 1) + "-" + z(d.getDate());
+  }
+  function parseDate(s) {
+    if (!s) return null;
+    s = String(s).trim();
+    var m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return m[1] + "-" + m[2] + "-" + m[3];
+    m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+    if (m) {
+      var y = m[3].length === 2 ? "20" + m[3] : m[3];
+      return y + "-" + ("0" + m[2]).slice(-2) + "-" + ("0" + m[1]).slice(-2);
+    }
+    return null;
+  }
+  function daysUntil(prazo) {
+    if (!prazo) return null;
+    var a = new Date(prazo + "T12:00:00");
+    var b = new Date(todayISO() + "T12:00:00");
+    return Math.round((a - b) / 86400000);
+  }
+  function onlyDigits(s) { return String(s || "").replace(/\D/g, ""); }
+  function formatCnj(d) {
+    d = onlyDigits(d);
+    if (d.length !== 20) return d;
+    return d.slice(0, 7) + "-" + d.slice(7, 9) + "." + d.slice(9, 13) + "." + d.slice(13, 14) + "." + d.slice(14, 16) + "." + d.slice(16);
+  }
+  function normalizeCnjInput(s) {
+    var d = onlyDigits(s);
+    if (d.length === 20) return formatCnj(d);
+    return String(s || "").trim();
+  }
+  function computeStatus(r) {
+    var st = String(r.status || "");
+    if (r.arquivado || /arquiv|encerr|baixad|extint|desist/i.test(st)) return "Arquivado";
+    var d = daysUntil(r.prazo);
+    if (d === null) return "Sem prazo";
+    if (d < 0) return "Vencido";
+    if (d === 0) return "É Hoje";
+    if (d <= 7) return "No prazo";
+    return "No prazo";
+  }
+  function statusBadge(st) {
+    if (st === "Vencido") return '<span class="badge b-venc">Vencido</span>';
+    if (st === "É Hoje") return '<span class="badge b-hoje">É hoje</span>';
+    if (st === "Arquivado") return '<span class="badge b-arq">Arquivado</span>';
+    if (st === "No prazo") return '<span class="badge b-ok">No prazo</span>';
+    return '<span class="badge b-arq">' + esc(st) + '</span>';
+  }
+  function esc(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+  function kpis() {
+    var total = rows.length, ativos = 0, venc = 0, hoje = 0, arq = 0, sem = 0;
+    for (var i = 0; i < rows.length; i++) {
+      var st = computeStatus(rows[i]);
+      if (st === "Arquivado") arq++;
+      else {
+        ativos++;
+        if (st === "Vencido") venc++;
+        else if (st === "É Hoje") hoje++;
+        else if (st === "Sem prazo") sem++;
+      }
+    }
+    return { total: total, ativos: ativos, venc: venc, hoje: hoje, arq: arq, sem: sem };
+  }
+  function scheduleSave() {
+    if (!window.lexisOffline || !window.lexisOffline.saveDb) return;
+    clearTimeout(window.__saveT);
+    window.__saveT = setTimeout(function () {
+      window.lexisOffline.saveDb({ rows: rows, notes: notes, savedAt: new Date().toISOString() })
+        .then(function () { /* silent */ })
+        .catch(function () { toast("Falha ao salvar"); });
+    }, 400);
+  }
+  function loadFromDisk() {
+    if (!window.lexisOffline || !window.lexisOffline.loadDb) return Promise.resolve();
+    return window.lexisOffline.loadDb().then(function (data) {
+      if (data && Array.isArray(data.rows)) {
+        rows = data.rows;
+        notes = Array.isArray(data.notes) ? data.notes : [];
+        renderAll();
+        toast("Carteira: " + rows.length + " processos");
+      }
+    }).catch(function () {});
+  }
+  function pick(obj, keys) {
+    for (var i = 0; i < keys.length; i++) {
+      var k = keys[i];
+      if (obj[k] != null && String(obj[k]).trim() !== "") return String(obj[k]).trim();
+      var lower = k.toLowerCase();
+      for (var p in obj) {
+        if (p.toLowerCase().replace(/\s|_/g, "") === lower.replace(/\s|_/g, "") && obj[p] != null && String(obj[p]).trim() !== "")
+          return String(obj[p]).trim();
+      }
+    }
+    return "";
+  }
+  function parseCsv(text) {
+    // Parser CSV completo (aspas + quebra de linha dentro do campo) — essencial p/ planilha W1
+    function parseCsvRows(str) {
+      str = String(str || "").replace(/^\uFEFF/, "");
+      var rows = [], row = [], cur = "", q = false;
+      for (var i = 0; i < str.length; i++) {
+        var c = str[i], n = str[i + 1];
+        if (q) {
+          if (c === '"' && n === '"') { cur += '"'; i++; }
+          else if (c === '"') q = false;
+          else cur += c;
+        } else {
+          if (c === '"') q = true;
+          else if (c === ",") { row.push(cur); cur = ""; }
+          else if (c === "\n" || c === "\r") {
+            if (c === "\r" && n === "\n") i++;
+            row.push(cur); cur = "";
+            if (row.some(function (x) { return String(x).trim(); })) rows.push(row);
+            row = [];
+          } else cur += c;
+        }
+      }
+      row.push(cur);
+      if (row.some(function (x) { return String(x).trim(); })) rows.push(row);
+      return rows;
+    }
+    function normHeader(h) {
+      return String(h || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
+    }
+    var table = parseCsvRows(text);
+    if (table.length < 2) return [];
+    var headers = table[0].map(function (x) { return String(x || "").replace(/\s+/g, " ").trim(); });
+    var nh = headers.map(normHeader);
+
+    var idxCliente = nh.findIndex(function (h) { return h === "cliente" || h.indexOf("cliente") >= 0; });
+    var idxTel = nh.findIndex(function (h) { return h.indexOf("telefone") >= 0; });
+    var idxProt = nh.findIndex(function (h) { return h.indexOf("protocolo") >= 0; });
+    var idxStatus = nh.findIndex(function (h) { return h === "status"; });
+    var idxRetorno = nh.findIndex(function (h) { return h === "retorno" || h === "ultimo" || h.indexOf("ultimo retorno") >= 0; });
+    var idxProx = nh.findIndex(function (h) { return h.indexOf("proximo retorno") >= 0 || h === "prazo"; });
+    var idxConclusos = nh.findIndex(function (h) { return h.indexOf("conclusos") >= 0; });
+    var idxDataMov = nh.findIndex(function (h) { return h.indexOf("data") >= 0 && h.indexOf("moviment") >= 0; });
+
+    // Planilha operacional W1 (21 cols): M=12 RETORNO, N=13 PRÓXIMO RETORNO
+    if (headers.length >= 14) {
+      if (idxRetorno < 0 || normHeader(headers[12] || "").indexOf("retorno") >= 0) idxRetorno = 12;
+      if (idxProx < 0 || normHeader(headers[13] || "").indexOf("proximo") >= 0) idxProx = 13;
+      if (idxCliente < 0) idxCliente = 3;
+      if (idxTel < 0) idxTel = 4;
+      if (idxProt < 0) idxProt = 5;
+      if (idxStatus < 0) idxStatus = 7;
+      if (idxConclusos < 0) idxConclusos = 11;
+      if (idxDataMov < 0) idxDataMov = 10;
+    }
+    // CSV simples do app
+    if (nh[0] === "cliente" && nh.indexOf("protocolo") === 1) {
+      idxCliente = 0; idxProt = 1; idxProx = 2; idxRetorno = 3; idxTel = 4; idxStatus = 5;
+    }
+
+    var out = [];
+    for (var li = 1; li < table.length; li++) {
+      var cols = table[li];
+      function col(i) { return i >= 0 && i < cols.length ? String(cols[i] || "").trim() : ""; }
+      var cliente = col(idxCliente);
+      var protocolo = normalizeCnjInput(col(idxProt));
+      if (!cliente && onlyDigits(protocolo).length < 15) continue;
+      var prazoRaw = col(idxProx);
+      var ultimoRaw = col(idxRetorno);
+      var prazo = parseDate(prazoRaw);
+      var ultimo = parseDate(ultimoRaw);
+      var status = col(idxStatus);
+      var mov = col(idxConclusos) || col(idxDataMov);
+      var telefone = col(idxTel);
+      var id = onlyDigits(protocolo) || ("row-" + li);
+      out.push({
+        id: id,
+        cliente: cliente,
+        protocolo: protocolo,
+        prazo: prazo,
+        ultimo: ultimo,
+        telefone: telefone,
+        status: status,
+        obs: mov,
+        movimentacao: mov,
+        arquivado: /encerr|arquiv|cancel/i.test(status || ""),
+      });
+    }
+    return out;
+  }
+  function mergeRows(incoming) {
+    var map = {};
+    rows.forEach(function (r) { map[r.id] = r; });
+    incoming.forEach(function (r) {
+      if (map[r.id]) Object.assign(map[r.id], r);
+      else { map[r.id] = r; rows.push(r); }
+    });
+    scheduleSave();
+    renderAll();
+  }
+  function sortUrg(list) {
+    return list.slice().sort(function (a, b) {
+      var da = daysUntil(a.prazo); var db = daysUntil(b.prazo);
+      if (da === null) da = 9999; if (db === null) db = 9999;
+      return da - db;
+    });
+  }
+  function actionsHtml(r) {
+    return '<div class="row-actions">' +
+      '<button type="button" class="btn" data-act="atend" data-id="' + esc(r.id) + '">Atender</button>' +
+      '<button type="button" class="btn" data-act="scan" data-id="' + esc(r.id) + '">Scan</button>' +
+      (r.telefone ? '<button type="button" class="btn" data-act="wa" data-id="' + esc(r.id) + '">WhatsApp</button>' : '') +
+      '</div>';
+  }
+  function tableHtml(list, cols) {
+    if (!list.length) return '<div class="empty"><b>Nada nesta fila</b>Troque o filtro (ex.: Trabalho ou Sem prazo) ou marque retornos em Atender.</div>';
+    var h = '<table><thead><tr>';
+    cols.forEach(function (c) { h += '<th>' + c + '</th>'; });
+    h += '</tr></thead><tbody>';
+    list.forEach(function (r) {
+      var st = computeStatus(r);
+      h += '<tr>';
+      cols.forEach(function (c) {
+        var cl = c.toLowerCase();
+        if (cl.indexOf("cliente") === 0) h += '<td><b>' + esc(r.cliente || "—") + '</b><div class="meta" style="font-size:.65rem">' + esc(r.protocolo || "") + '</div></td>';
+        else if (cl.indexOf("status") === 0) h += '<td>' + statusBadge(st) + '</td>';
+        else if (cl.indexOf("último") === 0 || cl.indexOf("ultimo") === 0) h += '<td>' + esc(r.ultimo || "—") + '</td>';
+        else if (cl.indexOf("próx") === 0 || cl.indexOf("prox") === 0 || cl === "retorno") h += '<td>' + esc(r.prazo || "—") + '</td>';
+        else if (cl.indexOf("dias") === 0) h += '<td>' + (daysUntil(r.prazo) == null ? "—" : daysUntil(r.prazo)) + '</td>';
+        else if (cl.indexOf("ações") === 0 || cl.indexOf("acoes") === 0) h += '<td class="row-actions">' + actionsHtml(r) + '</td>';
+        else if (cl.indexOf("mov") === 0) h += '<td style="max-width:220px;font-size:.68rem">' + esc((r.movimentacao || r.obs || "").slice(0, 120)) + '</td>';
+        else h += '<td>—</td>';
+      });
+      h += '</tr>';
+    });
+    h += '</tbody></table>';
+    return h;
+  }
+  function renderAll() {
+    var k = kpis();
+    $("countPill").textContent = k.total + " proc.";
+    $("kpiRow").innerHTML =
+      kpiCard("Total", k.total, "") + kpiCard("Ativos", k.ativos, "pri") +
+      kpiCard("Vencidos", k.venc, "danger") + kpiCard("É hoje", k.hoje, "warn") +
+      kpiCard("Arquivados", k.arq, "") + kpiCard("Sem prazo", k.sem, "");
+    var crit = sortUrg(rows.filter(function (r) {
+      var st = computeStatus(r); return st === "Vencido" || st === "É Hoje";
+    })).slice(0, 40);
+    if (!crit.length) {
+      crit = rows.filter(function (r) { return computeStatus(r) === "Sem prazo"; })
+        .sort(function (a, b) { return String(a.cliente||"").localeCompare(String(b.cliente||"")); })
+        .slice(0, 40);
+    }
+    $("critTable").innerHTML = (crit.length && computeStatus(crit[0]) === "Sem prazo"
+      ? '<p class="hint">Nenhum vencido/hoje: a planilha veio sem coluna de prazo. Mostrando ativos <b>sem prazo</b> — use Atender para marcar o próximo retorno.</p>'
+      : '') + tableHtml(crit, ["Cliente", "Status", "Retorno", "Dias", "Ações"]);
+
+    var ft = ($("filtroTarefas") && $("filtroTarefas").value) || "trabalho";
+    var qt = (($("qTarefas") && $("qTarefas").value) || "").toLowerCase();
+    var tl = rows.filter(function (r) {
+      var st = computeStatus(r);
+      if (ft === "trabalho" && st === "Arquivado") return false;
+      if (ft === "semprazo" && st !== "Sem prazo") return false;
+      if (ft === "fila" && st !== "Vencido" && st !== "É Hoje") return false;
+      if (ft === "vencido" && st !== "Vencido") return false;
+      if (ft === "hoje" && st !== "É Hoje") return false;
+      if (ft === "pendente" && st !== "No prazo") return false;
+      if (ft === "todos") { /* all */ }
+      if (qt && !(String(r.cliente || "").toLowerCase().indexOf(qt) >= 0 || String(r.protocolo || "").toLowerCase().indexOf(qt) >= 0)) return false;
+      return true;
+    });
+    $("tarefasTable").innerHTML = tableHtml(sortUrg(tl).slice(0, 200), ["Cliente", "Status", "Retorno", "Dias", "Ações"]);
+
+    var week = [];
+    var now = new Date(todayISO() + "T12:00:00");
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i];
+      if (!r.prazo || computeStatus(r) === "Arquivado") continue;
+      var d = new Date(r.prazo + "T12:00:00");
+      var diff = Math.round((d - now) / 86400000);
+      if (diff >= 0 && diff <= 7) week.push(r);
+    }
+    $("agendaKpis").innerHTML = kpiCard("Nesta semana", week.length, "pri") + kpiCard("Vencidos", k.venc, "danger") + kpiCard("Sem prazo", k.sem, "warn");
+    var agHtml = "";
+    if (!week.length) {
+      agHtml = '<p class="hint">Agenda vazia: nenhum <b>próximo retorno</b> nos próximos 7 dias. Na planilha, a coluna prazo/proximo_retorno está vazia. Marque retornos em Atender.</p>';
+    }
+    $("agendaTable").innerHTML = agHtml + tableHtml(sortUrg(week.length ? week : rows.filter(function(r){return computeStatus(r)==="Sem prazo";}).slice(0,50)), ["Cliente", "Status", "Retorno", "Dias", "Ações"]);
+
+    var fp = ($("filtroProc") && $("filtroProc").value) || "ativos";
+    var qp = (($("qProc") && $("qProc").value) || "").toLowerCase();
+    var pl = rows.filter(function (r) {
+      var st = computeStatus(r);
+      if (fp === "ativos" && st === "Arquivado") return false;
+      if (fp === "arq" && st !== "Arquivado") return false;
+      if (fp === "vencido" && st !== "Vencido") return false;
+      if (qp && !(String(r.cliente || "").toLowerCase().indexOf(qp) >= 0 || String(r.protocolo || "").toLowerCase().indexOf(qp) >= 0)) return false;
+      return true;
+    });
+    $("procTable").innerHTML = tableHtml(sortUrg(pl).slice(0, 300), ["Cliente", "Status", "Retorno", "Dias", "Ações"]);
+
+    if (notes.length) {
+      $("notasList").innerHTML = notes.slice().reverse().slice(0, 50).map(function (n) {
+        return '<div style="border-bottom:1px solid var(--border);padding:.4rem 0"><b>' + esc(n.ref) + '</b> · ' + esc(n.at) + '<div>' + esc(n.text) + '</div></div>';
+      }).join("");
+    }
+  }
+  function kpiCard(l, v, cls) {
+    return '<div class="kpi ' + (cls || "") + '"><div class="l">' + l + '</div><div class="v">' + v + '</div></div>';
+  }
+  function nav(name) {
+    document.querySelectorAll(".nav").forEach(function (b) {
+      b.classList.toggle("active", b.getAttribute("data-nav") === name);
+    });
+    document.querySelectorAll(".panel").forEach(function (p) {
+      p.classList.toggle("active", p.id === "p-" + name);
+    });
+    $("pageTitle").textContent = titles[name] || name;
+  }
+  document.querySelectorAll(".nav").forEach(function (b) {
+    b.addEventListener("click", function () { nav(b.getAttribute("data-nav")); });
+  });
+
+  $("btnGotoImport").onclick = function () { nav("planob"); };
+  $("btnSaveDisk").onclick = $("btnSaveDisk2").onclick = function () {
+    if (!window.lexisOffline) return toast("Abra pelo EXE");
+    window.lexisOffline.saveDb({ rows: rows, notes: notes, savedAt: new Date().toISOString() })
+      .then(function () { toast("Salvo no PC"); }).catch(function (e) { toast(String(e)); });
+  };
+  $("btnLoadDisk").onclick = function () { loadFromDisk(); };
+
+  if ($("btnExportSheetCsv")) $("btnExportSheetCsv").onclick = function () {
+    if ($("btnExportCsv")) $("btnExportCsv").click();
+    else {
+      var lines = ["cliente,protocolo,prazo,ultimo,telefone,status,obs"];
+      function q(s) { s = String(s == null ? "" : s).replace(/"/g, '""'); return '"' + s + '"'; }
+      rows.forEach(function (r) {
+        lines.push([q(r.cliente), q(r.protocolo), q(r.prazo), q(r.ultimo), q(r.telefone), q(r.status), q(r.obs)].join(","));
+      });
+      var csv = lines.join("\n");
+      if (window.lexisOffline && window.lexisOffline.exportCsvFile) window.lexisOffline.exportCsvFile(csv, "lexis-carteira-para-planilha.csv");
+      else {
+        var a = document.createElement("a");
+        a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+        a.download = "lexis-carteira-para-planilha.csv"; a.click();
+      }
+      toast("CSV pronto para importar na planilha Google");
+    }
+  };
+  $("btnSheets").onclick = async function () {
+    var url = $("sheetsUrl").value.trim();
+    if (!url) return toast("Cole o link da planilha");
+    try { localStorage.setItem(LS_URL, url); } catch (e) {}
+    if (!window.lexisOffline || !window.lexisOffline.fetchText) return toast("Abra pelo Lexis Gabinete.exe");
+    $("sheetsStatus").textContent = "Baixando…";
+    try {
+      var res = await window.lexisOffline.fetchText(url);
+      if (!res || !res.ok) {
+        $("sheetsStatus").textContent = (res && res.error) || "Falha";
+        return toast("Falha ao baixar planilha (publique o link)");
+      }
+      var incoming = parseCsv(res.text || "");
+      if (!incoming.length) {
+        $("sheetsStatus").textContent = "CSV vazio ou cabeçalhos não reconhecidos";
+        return toast("Nenhuma linha válida");
+      }
+      rows = incoming;
+      scheduleSave();
+      renderAll();
+      var comPrazo = incoming.filter(function (r) { return !!r.prazo; }).length;
+      var comUlt = incoming.filter(function (r) { return !!r.ultimo; }).length;
+      $("sheetsStatus").textContent = "OK · " + incoming.length + " processos · LP map · PRÓXIMO RETORNO (N): " + comPrazo + " · com RETORNO (M): " + comUlt;
+      toast("Importados " + incoming.length);
+      nav("painel");
+    } catch (e) {
+      $("sheetsStatus").textContent = String(e.message || e);
+      toast("Erro na planilha");
+    }
+  };
+  $("btnPaste").onclick = function () {
+    var incoming = parseCsv($("csvPaste").value);
+    if (!incoming.length) return toast("CSV inválido");
+    rows = incoming; scheduleSave(); renderAll(); toast(incoming.length + " linhas"); nav("painel");
+  };
+  $("fileCsv").onchange = function (ev) {
+    var f = ev.target.files && ev.target.files[0];
+    if (!f) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      var incoming = parseCsv(String(reader.result || ""));
+      if (!incoming.length) return toast("Arquivo sem linhas válidas");
+      rows = incoming; scheduleSave(); renderAll(); toast(incoming.length + " importados"); nav("painel");
+    };
+    reader.readAsText(f, "UTF-8");
+  };
+  $("btnClear").onclick = function () {
+    if (!confirm("Limpar toda a carteira local?")) return;
+    rows = []; notes = []; scheduleSave(); renderAll(); toast("Limpo");
+  };
+  $("btnExportCsv").onclick = $("btnOpenCsvFolder").onclick = async function () {
+    var lines = ["cliente,protocolo,prazo,ultimo,telefone,status,obs"];
+    rows.forEach(function (r) {
+      function q(s) { return '"' + String(s || "").replace(/"/g, '""') + '"'; }
+      lines.push([q(r.cliente), q(r.protocolo), q(r.prazo), q(r.ultimo), q(r.telefone), q(r.status), q(r.obs)].join(","));
+    });
+    var csv = lines.join("\n");
+    if (window.lexisOffline && window.lexisOffline.exportCsvFile) {
+      await window.lexisOffline.exportCsvFile(csv, "lexis-carteira.csv");
+      toast("CSV exportado");
+    } else {
+      var blob = new Blob([csv], { type: "text/csv" });
+      var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "lexis-carteira.csv"; a.click();
+    }
+  };
+
+  function addBusinessDays(iso, n) {
+    if (!iso || !n) return null;
+    var d = new Date(iso + "T12:00:00");
+    if (isNaN(d.getTime())) return null;
+    var left = n;
+    while (left > 0) {
+      d.setDate(d.getDate() + 1);
+      var w = d.getDay();
+      if (w !== 0 && w !== 6) left--;
+    }
+    var z = function (x) { return x < 10 ? "0" + x : "" + x; };
+    return d.getFullYear() + "-" + z(d.getMonth() + 1) + "-" + z(d.getDate());
+  }
+  function stripHtml(html) {
+    var s = String(html || "");
+    s = s.replace(/<script[\s\S]*?<\/script>/gi, " ");
+    s = s.replace(/<style[\s\S]*?<\/style>/gi, " ");
+    s = s.replace(/<[^>]+>/g, " ");
+    s = s.replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">");
+    s = s.replace(/&iacute;/gi, "i").replace(/&atilde;/gi, "a").replace(/&ccedil;/gi, "c");
+    s = s.replace(/&ordm;/gi, "o").replace(/&ndash;/gi, "-").replace(/&#\d+;/g, " ");
+    return s.replace(/\s+/g, " ").trim();
+  }
+  
+  function classifyDjenLp(plain, tipo) {
+    var u = String(plain || "").toUpperCase();
+    if (/(EXTIN|EXTINTO|CANCELAMENTO DA DISTRIB)/.test(u)) return "Extinção / cancelamento";
+    if (/(EMENDA|EMENDE|ADITAMENTO)/.test(u)) return "Emenda à inicial";
+    if (/(AJG|GRATUIDADE|HIPOSSUF)/.test(u)) return "Justiça gratuita";
+    if (/(TRÂNSITO|TRANSITO EM JULGADO|BAIXA DEFINITIVA)/.test(u)) return "Trânsito / baixa";
+    if (/(CUMPRIMENTO DE SENTEN|ART\.?\s*523|PENHORA)/.test(u)) return "Cumprimento de sentença";
+    if (/(JULGO\s+(PARCIALMENTE\s+)?PROCEDENTE|PROCEDÊNCIA)/.test(u)) return "Sentença procedente";
+    if (/(JULGO\s+IMPROCEDENTE|IMPROCEDÊNCIA)/.test(u)) return "Sentença improcedente";
+    if (/(ACÓRDÃO|ACORDAO|NEGARAM-LHE PROVIMENTO|DERAM PROVIMENTO)/.test(u)) return "Acórdão / recurso";
+    if (/(CONTESTAÇÃO|CONTESTACAO)/.test(u) && /(INTIM|PRAZO)/.test(u)) return "Intimação — contestação";
+    if (/(RÉPLICA|REPLICA|IMPUGNAR A CONTEST)/.test(u)) return "Intimação — réplica";
+    if (/(ESPECIFICA|PROVAS QUE PRETENDEM)/.test(u)) return "Intimação — especificar provas";
+    if (/(AUDIÊNCIA|AUDIENCIA)/.test(u)) return "Audiência";
+    if (/(CONCLUSOS)/.test(u)) return "Conclusos";
+    if (/(DESPACHO)/.test(u)) return "Despacho";
+    if (/(SENTEN)/.test(u)) return "Sentença";
+    if (/(DISTRIBU)/.test(u)) return "Distribuição";
+    return tipo || "Publicação DJEN";
+  }
+
+  function summarizeMovimento(texto, tipo) {
+    var t = stripHtml(texto);
+    if (!t) return tipo || "Sem teor";
+    // pega trecho após DESPACHO / DECISÃO / SENTENÇA
+    var cut = t.search(/DESPACHO|DECIS[AÃ]O|SENTEN[CÇ]A|INTIMA[CÇ][AÃ]O|ATA DE AUDI[EÊ]NCIA/i);
+    var body = cut >= 0 ? t.slice(cut) : t;
+    body = body.replace(/^ESTADO DO .+?(?=DESPACHO|DECIS|SENTEN|INTIMA|Processo)/i, "");
+    // remove cabeçalho processual repetido
+    body = body.replace(/Processo n[ºo°]\s*[\d\.\-]+/ig, "");
+    body = body.replace(/Classe:.*?REU:.*?(?=DESPACHO|DECIS|SENTEN|INTIMA|$)/ig, "");
+    body = body.replace(/\s+/g, " ").trim();
+    // classifica ação
+    var acao = classifyDjenLp(body, tipo);
+    if (/julgo\s+(parcialmente\s+)?procedente/i.test(body)) acao = "Sentença procedente";
+    else if (/julgo\s+improcedente/i.test(body)) acao = "Sentença improcedente";
+    else if (/conclusos?\s+para/i.test(body)) acao = "Conclusos";
+    else if (/especifiquem?\s+as\s+provas|fase de instru[cç][aã]o/i.test(body)) acao = "Intimação — especificar provas / réplica";
+    else if (/contest[a][cç][aã]o/i.test(body) && /intim/i.test(body)) acao = "Intimação — contestação / prazo";
+    else if (/audi[eê]ncia/i.test(body)) acao = "Audiência";
+    else if (/penhora|bloqueio|cumprimento de senten/i.test(body)) acao = "Cumprimento / penhora";
+    else if (/DESPACHO/i.test(body)) acao = "Despacho";
+    var resumo = body.slice(0, 320);
+    return { acao: acao, resumo: resumo };
+  }
+  function extractFromDjen(dn) {
+    var items = (dn && dn.items) || [];
+    var ultimo = null, ultimoTipo = "", texto = "", link = "";
+    for (var i = 0; i < items.length; i++) {
+      var it = items[i];
+      if (!ultimo || String(it.data || "") > ultimo) {
+        ultimo = it.data || null;
+        ultimoTipo = it.tipo || "";
+        texto = it.texto || "";
+        link = it.link || "";
+      }
+    }
+    var sum = summarizeMovimento(texto, ultimoTipo);
+    var prazoDias = null;
+    var m = texto.match(/prazo\s+(?:comum\s+)?de\s+(\d+)\s*\(?\s*(?:quinze|dez|cinco|\d+)?\s*\)?\s*dias/i)
+      || texto.match(/no\s+prazo\s+(?:comum\s+)?de\s+(\d+)/i)
+      || texto.match(/prazo\s+de\s+(\d+)\s*\(\w+\)\s*dias/i);
+    if (m) prazoDias = parseInt(m[1], 10);
+    if (!prazoDias && /quinze\s*\(?15\)?\s*dias|15\s*\(quinze\)\s*dias/i.test(texto)) prazoDias = 15;
+    if (!prazoDias && /dez\s*\(?10\)?\s*dias|10\s*\(dez\)\s*dias/i.test(texto)) prazoDias = 10;
+    var proximo = prazoDias && ultimo ? addBusinessDays(ultimo, prazoDias) : null;
+    return {
+      ultimo: ultimo,
+      ultimoTipo: sum.acao || ultimoTipo,
+      prazoDias: prazoDias,
+      proximo: proximo,
+      resumo: sum.resumo,
+      link: link,
+      count: items.length,
+    };
+  }
+  function formatScanHtml(res) {
+    if (res.error) return '<div class="scan-card"><b style="color:var(--danger)">Erro</b><p>' + esc(res.error) + '</p></div>';
+    var dj = res.datajud || {};
+    var ex = extractFromDjen(res.djen);
+    var h = "";
+    h += '<div class="scan-card">';
+    h += '<h3>' + esc(res.cnj) + '</h3>';
+    h += '<div class="meta">Tribunal (DataJud): ' + esc(dj.alias || "—") + (dj.found === false || (!dj.movimentosCount && !dj.ultimoNome) ? ' · <span style="color:var(--warn)">sem movimentos indexados</span>' : '') + '</div>';
+    if (dj.ultimoNome) h += '<div><b>Último DataJud:</b> ' + esc(dj.ultimoNome) + ' · ' + esc(String(dj.ultimoData || "").slice(0, 10)) + '</div>';
+    if (dj.nota) h += '<div class="meta">' + esc(dj.nota) + '</div>';
+    h += '<div style="margin-top:.5rem"><b>DJEN:</b> ' + ex.count + ' comunicação(ões)</div>';
+    if (ex.ultimo) h += '<div><b>Último retorno:</b> ' + esc(ex.ultimo) + '</div>';
+    if (ex.ultimoTipo) h += '<div><b>O que houve:</b> ' + esc(ex.ultimoTipo) + '</div>';
+    if (ex.prazoDias) h += '<div><b>Prazo no teor:</b> ' + ex.prazoDias + ' dias úteis → <b>próximo:</b> ' + esc(ex.proximo || "—") + '</div>';
+    else h += '<div class="meta">Nenhum prazo em dias detectado no texto do DJEN.</div>';
+    if (ex.resumo) h += '<div class="meta" style="margin-top:.35rem">' + esc(ex.resumo) + '…</div>';
+    if (ex.link) h += '<div style="margin-top:.35rem"><a href="#" data-ext="' + esc(ex.link) + '" class="btn" style="display:inline-block">Abrir no PJe</a></div>';
+    h += '</div>';
+    return h;
+  }
+  window.__lastScan = null;
+  async function runScan(cnjRaw) {
+    var cnj = normalizeCnjInput(cnjRaw);
+    var d = onlyDigits(cnj);
+    if (d.length !== 20) {
+      return { error: "CNJ precisa de 20 dígitos. Exemplo: 1013666-07.2025.8.26.0477 (você colou " + d.length + " dígitos)." };
+    }
+    if (!window.lexisOffline) return { error: "Abra pelo EXE" };
+    var dj = await window.lexisOffline.datajud(cnj);
+    var dn = await window.lexisOffline.djen(cnj);
+    return { cnj: formatCnj(d), datajud: dj, djen: dn };
+  }
+  function applyScanToCarteira(res) {
+    if (!res || res.error) return 0;
+    var d = onlyDigits(res.cnj);
+    var ex = extractFromDjen(res.djen);
+    var dj = res.datajud || {};
+    var ultimo = ex.ultimo || (dj.ultimoData ? String(dj.ultimoData).slice(0, 10) : null);
+    var prazo = ex.proximo || null;
+    var n = 0;
+    rows.forEach(function (r) {
+      if (onlyDigits(r.protocolo) !== d) return;
+      if (ultimo) r.ultimo = ultimo;
+      if (prazo) r.prazo = prazo;
+      if (ex.ultimoTipo) r.movimentacao = ex.ultimoTipo + (ex.resumo ? " — " + ex.resumo.slice(0, 160) : "");
+      var bit = [];
+      if (ex.ultimoTipo) bit.push(ex.ultimoTipo);
+      if (ex.prazoDias) bit.push("prazo " + ex.prazoDias + "d úteis → " + (prazo || "?"));
+      if (dj.ultimoNome) bit.push("DataJud: " + dj.ultimoNome);
+      if (bit.length) r.obs = bit.join(" · ");
+      n++;
+    });
+    if (n) { scheduleSave(); renderAll(); }
+    return n;
+  }
+  $("btnScanOne").onclick = async function () {
+    $("scanOut").textContent = "Consultando…";
+    $("scanView").innerHTML = '<p class="hint">Consultando DataJud + DJEN…</p>';
+    var res = await runScan($("scanCnj").value);
+    window.__lastScan = res;
+    var applied = applyScanToCarteira(res);
+    $("scanOut").textContent = JSON.stringify(res, null, 2);
+    $("scanView").innerHTML = formatScanHtml(res) + (applied ? '<p class="hint" style="color:var(--ok)">Aplicado na carteira: último + prazo atualizados.</p>' : '<p class="hint">CNJ não estava na carteira — só consulta.</p>');
+  };
+  $("btnScanApply").onclick = function () {
+    var n = applyScanToCarteira(window.__lastScan);
+    if (!n) toast("Nenhum processo na carteira com este CNJ — importe a planilha antes");
+    else toast("Atualizado " + n + " registro(s): último + prazo");
+  };
+  $("btnScanBatch").onclick = async function () {
+    var fila = sortUrg(rows.filter(function (r) {
+      return !r.arquivado && computeStatus(r) !== "Arquivado" && onlyDigits(r.protocolo).length === 20;
+    }));
+    if (!fila.length) return toast("Sem CNJs válidos na carteira — carregue a planilha");
+    var max = fila.length;
+    if (max > 80) {
+      if (!confirm("Fila com " + max + " processos. Escanear os 80 mais urgentes agora?")) return;
+      fila = fila.slice(0, 80);
+      max = 80;
+    }
+    $("scanView").innerHTML = '<div class="scan-card"><h3>Fila do scanner · 0/' + max + '</h3><p class="meta">No estilo LexisPredict: um CNJ por vez, atualizando retorno e próximo prazo.</p><div id="scanFilaTable"></div></div>';
+    $("scanOut").textContent = "Fila " + max;
+    var applied = 0;
+    var log = [];
+    for (var i = 0; i < fila.length; i++) {
+      var r0 = fila[i];
+      $("scanView").querySelector("h3").textContent = "Fila do scanner · " + (i + 1) + "/" + max + " · " + (r0.cliente || "").slice(0, 40);
+      var res = await runScan(r0.protocolo);
+      var n = applyScanToCarteira(res);
+      applied += n;
+      var ex = extractFromDjen(res.djen || {});
+      log.unshift({
+        cliente: r0.cliente,
+        cnj: res.cnj || r0.protocolo,
+        ultimo: ex.ultimo || "—",
+        prazo: ex.proximo || "—",
+        oque: ex.ultimoTipo || "—",
+      });
+      var th = '<table><thead><tr><th>Cliente</th><th>CNJ</th><th>Último</th><th>Próx. prazo</th><th>O que houve</th></tr></thead><tbody>';
+      log.slice(0, 40).forEach(function (x) {
+        th += '<tr><td>' + esc(x.cliente) + '</td><td>' + esc(x.cnj) + '</td><td>' + esc(x.ultimo) + '</td><td>' + esc(x.prazo) + '</td><td>' + esc(x.oque) + '</td></tr>';
+      });
+      th += '</tbody></table>';
+      var box = $("scanFilaTable");
+      if (box) box.innerHTML = th;
+      $("scanOut").textContent = "Feitos " + (i + 1) + "/" + max + " · aplicados " + applied;
+    }
+    toast("Fila concluída: " + applied + " atualizações");
+    renderAll();
+  };
+  document.addEventListener("click", function (e) {
+    var a = e.target.closest && e.target.closest("[data-ext]");
+    if (a && window.lexisOffline && window.lexisOffline.openExternal) {
+      e.preventDefault();
+      window.lexisOffline.openExternal(a.getAttribute("data-ext"));
+    }
+  });
+  $("btnVeredito").onclick = async function () {
+    $("verOut").textContent = "…";
+    var res = await runScan($("verCnj").value);
+    $("verOut").textContent = JSON.stringify(res, null, 2);
+  };
+  $("btnSugerir").onclick = function () {
+    var ref = ($("sugRef").value || "").toLowerCase();
+    var r = rows.find(function (x) {
+      return String(x.cliente || "").toLowerCase().indexOf(ref) >= 0 || String(x.protocolo || "").toLowerCase().indexOf(ref) >= 0;
+    });
+    if (!r) return toast("Não achei na carteira");
+    var st = computeStatus(r);
+    var texto =
+      "Olá, " + (r.cliente || "").split(" ")[0] + "! Tudo bem?\n\n" +
+      "Sobre o processo " + (r.protocolo || "") + ": situação na nossa carteira — " + st +
+      (r.prazo ? " (retorno previsto " + r.prazo + ")" : "") + ".\n\n" +
+      (r.obs ? "Observação interna: " + r.obs + "\n\n" : "") +
+      "Qualquer dúvida, estamos à disposição.\nEquipe";
+    $("sugOut").textContent = texto;
+  };
+  $("btnCopySug").onclick = async function () {
+    try { await navigator.clipboard.writeText($("sugOut").textContent || ""); toast("Copiado"); }
+    catch (e) { toast("Copie manualmente"); }
+  };
+  $("btnReport").onclick = function () {
+    var k = kpis();
+    var top = sortUrg(rows.filter(function (r) { return computeStatus(r) === "Vencido"; })).slice(0, 25);
+    var hoje = rows.filter(function (r) { return computeStatus(r) === "É Hoje"; });
+    var t = "══════════════════════════════════════\n";
+    t += " DOSSIÊ OPERACIONAL · LEXIS OFFLINE v5.1\n";
+    t += " Data: " + todayISO() + "\n";
+    t += "══════════════════════════════════════\n\n";
+    t += "RESUMO\n";
+    t += "  Total: " + k.total + " | Ativos: " + k.ativos + " | Vencidos: " + k.venc + "\n";
+    t += "  É hoje: " + k.hoje + " | Arquivados: " + k.arq + " | Sem prazo: " + k.sem + "\n\n";
+    t += "VENCIDOS (top 25)\n";
+    top.forEach(function (r, i) {
+      t += "  " + (i + 1) + ". " + (r.cliente || "—") + " | " + (r.protocolo || "—") + " | prazo " + (r.prazo || "—") + " | dias " + daysUntil(r.prazo) + "\n";
+    });
+    t += "\nÉ HOJE (" + hoje.length + ")\n";
+    hoje.slice(0, 20).forEach(function (r, i) {
+      t += "  " + (i + 1) + ". " + (r.cliente || "—") + " | " + (r.protocolo || "—") + "\n";
+    });
+    t += "\n— Gerado localmente · W1 Capital —\n";
+    $("reportOut").textContent = t;
+  };
+  $("btnCopyReport").onclick = async function () {
+    try { await navigator.clipboard.writeText($("reportOut").textContent || ""); toast("Relatório copiado"); }
+    catch (e) { toast("Copie manualmente"); }
+  };
+  $("btnExportReport").onclick = async function () {
+    var txt = $("reportOut").textContent || "";
+    if (window.lexisOffline && window.lexisOffline.exportCsvFile) {
+      await window.lexisOffline.exportCsvFile(txt, "dossie-operacional.txt");
+      toast("Arquivo salvo");
+    } else {
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([txt], { type: "text/plain" }));
+      a.download = "dossie-operacional.txt"; a.click();
+    }
+  };
+  $("btnAi").onclick = async function () {
+    var prompt = $("aiPrompt").value || "";
+    if (!prompt.trim()) return toast("Escreva a pergunta");
+    var prov = $("aiProv").value;
+    var key = $("aiKey").value || "";
+    if (key) try { localStorage.setItem(LS_KEY, key); } catch (e) {}
+    if (!window.lexisOffline || !window.lexisOffline.aiChat) return toast("Abra pelo EXE");
+    $("aiOut").textContent = "Consultando " + prov + "…";
+    var k = kpis();
+    var ctx = "Carteira local: total=" + k.total + " vencidos=" + k.venc + " ativos=" + k.ativos + " hoje=" + k.hoje;
+    var model = prov === "minimax" ? "MiniMax-M2.5" : (prov === "ollama" ? "qwen2.5:0.5b" : undefined);
+    var res = await window.lexisOffline.aiChat({ provider: prov, apiKey: key, model: model, prompt: ctx + "\n\nPedido:\n" + prompt });
+    $("aiOut").textContent = res.ok ? res.text : ("Erro: " + (res.error || "falhou"));
+  };
+  $("btnNota").onclick = function () {
+    var ref = $("notaRef").value.trim();
+    var text = $("notaTxt").value.trim();
+    if (!text) return toast("Escreva a nota");
+    notes.push({ ref: ref || "—", text: text, at: new Date().toLocaleString("pt-BR") });
+    $("notaTxt").value = ""; scheduleSave(); renderAll(); toast("Nota salva");
+  };
+
+  document.body.addEventListener("click", function (e) {
+    var btn = e.target.closest("[data-act]");
+    if (!btn) return;
+    var id = btn.getAttribute("data-id");
+    var act = btn.getAttribute("data-act");
+    var r = rows.find(function (x) { return x.id === id; });
+    if (!r) return;
+    if (act === "atend") {
+      editId = id;
+      $("modalCliente").textContent = (r.cliente || "—") + " · " + (r.protocolo || "");
+      $("atendPrazo").value = r.prazo || "";
+      $("atendObs").value = r.obs || "";
+      $("atendEncerrar").checked = !!r.arquivado;
+      $("modalAtend").classList.add("show");
+    }
+    if (act === "wa") {
+      var n = onlyDigits(r.telefone);
+      if (n.length <= 11) n = "55" + n;
+      var url = "https://wa.me/" + n;
+      if (window.lexisOffline && window.lexisOffline.openExternal) window.lexisOffline.openExternal(url);
+      else window.open(url);
+    }
+    if (act === "scan") {
+      nav("scanner");
+      $("scanCnj").value = r.protocolo || "";
+    }
+  });
+  $("atendCancel").onclick = function () { $("modalAtend").classList.remove("show"); };
+  $("atendSave").onclick = function () {
+    var r = rows.find(function (x) { return x.id === editId; });
+    if (!r) return;
+    r.prazo = $("atendPrazo").value || null;
+    r.obs = $("atendObs").value || "";
+    r.ultimo = todayISO();
+    r.arquivado = $("atendEncerrar").checked;
+    if (r.arquivado) r.status = "Arquivado";
+    scheduleSave();
+    $("modalAtend").classList.remove("show");
+    renderAll();
+    toast("Atendimento salvo · retorno " + (r.prazo || "—"));
+  };
+
+  ["qTarefas", "qProc", "filtroTarefas", "filtroProc"].forEach(function (id) {
+    var el = $(id);
+    if (el) el.addEventListener("input", renderAll);
+    if (el) el.addEventListener("change", renderAll);
+  });
+
+  if (!window.lexisOffline) {
+    toast("Abra pelo Lexis Gabinete.exe (não no Chrome)");
+  }
+  try {
+    var u = localStorage.getItem(LS_URL); if (u) $("sheetsUrl").value = u;
+    var key = localStorage.getItem(LS_KEY); if (key) $("aiKey").value = key;
+    if (window.lexisOffline && window.lexisOffline.secretsStatus) {
+      window.lexisOffline.secretsStatus().then(function (st) {
+        if (st && st.hasKey) {
+          var hint = document.querySelector("#p-ia .hint");
+          if (hint) hint.innerHTML = "MiniMax: chave carregada de <b>lexis-secrets.json</b> (ao lado do EXE). Pode deixar o campo vazio.";
+        }
+      }).catch(function () {});
+    }
+  } catch (e) {}
+
+  loadFromDisk().then(function () {
+    if (window.lexisOffline && window.lexisOffline.getPaths) {
+      window.lexisOffline.getPaths().then(function (p) {
+        if ($("pathInfo")) $("pathInfo").textContent = "DB: " + ((p && p.db) || "—");
+      });
+    }
+  });
+  toast("Lexis Offline v5.1.1.1 — fila sem prazo");
+})();
+</script>
+</body>
+</html>

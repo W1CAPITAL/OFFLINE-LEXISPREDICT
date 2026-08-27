@@ -1,0 +1,16 @@
+{
+  "name": "offline-lexispredict",
+  "version": "5.1.7",
+  "private": true,
+  "description": "Lexis Gabinete Offline — Electron + carteira + DataJud/DJEN + MiniMax",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/W1CAPITAL/OFFLINE-LEXISPREDICT.git"
+  },
+  "scripts": {
+    "check:js": "node --check desktop/main.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

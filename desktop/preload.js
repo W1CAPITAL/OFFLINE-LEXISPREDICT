@@ -1,0 +1,24 @@
+const { contextBridge, ipcRenderer } = require("electron");
+
+contextBridge.exposeInMainWorld("lexisOffline", {
+  isElectron: true,
+  version: "5.1.0-offline",
+  fetchText: (url) => ipcRenderer.invoke("lexis-fetch-text", url),
+  fetchJson: (url, opts) => ipcRenderer.invoke("lexis-fetch-json", url, opts || {}),
+  datajud: (cnj) => ipcRenderer.invoke("lexis-datajud", cnj),
+  djen: (cnj, opts) => ipcRenderer.invoke("lexis-djen", cnj, opts || {}),
+  loadDb: () => ipcRenderer.invoke("lexis-db-load"),
+  saveDb: (data) => ipcRenderer.invoke("lexis-db-save", data),
+  exportCsvFile: (csv, name) => ipcRenderer.invoke("lexis-export-csv", csv, name || "lexis-carteira.csv"),
+  aiChat: (payload) => ipcRenderer.invoke("lexis-ai-chat", payload || {}),
+  secretsStatus: () => ipcRenderer.invoke("lexis-secrets-status"),
+  openExternal: (url) => ipcRenderer.invoke("lexis-open-external", url),
+  getPaths: () => ipcRenderer.invoke("lexis-paths"),
+});
+
+contextBridge.exposeInMainWorld("lexisDesktop", {
+  isDesktop: true,
+  version: "5.1.0",
+  platform: process.platform,
+  mode: "offline",
+});
