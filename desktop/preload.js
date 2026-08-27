@@ -1,8 +1,10 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
+const APP_VERSION = "5.1.8";
+
 contextBridge.exposeInMainWorld("lexisOffline", {
   isElectron: true,
-  version: "5.1.0-offline",
+  version: APP_VERSION,
   fetchText: (url) => ipcRenderer.invoke("lexis-fetch-text", url),
   fetchJson: (url, opts) => ipcRenderer.invoke("lexis-fetch-json", url, opts || {}),
   datajud: (cnj) => ipcRenderer.invoke("lexis-datajud", cnj),
@@ -19,7 +21,7 @@ contextBridge.exposeInMainWorld("lexisOffline", {
 
 contextBridge.exposeInMainWorld("lexisDesktop", {
   isDesktop: true,
-  version: "5.1.0",
+  version: APP_VERSION,
   platform: process.platform,
   mode: "offline",
 });

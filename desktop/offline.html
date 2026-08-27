@@ -212,8 +212,11 @@ td { padding: .55rem .5rem; border-bottom: 1px solid rgba(148,163,184,.08); vert
             <input id="scanCnj" placeholder="CNJ completo (20 dígitos)" style="flex:1"/>
             <button type="button" class="btn btn-primary" id="btnScanOne">Consultar 1</button>
             <button type="button" class="btn btn-ok" id="btnScanApply">Aplicar na carteira</button>
-            <button type="button" class="btn" id="btnScanBatch">Fila completa (estilo LexisPredict)</button>
+            <button type="button" class="btn" id="btnScanEnqueue">Enfileirar CNJ</button>
+            <button type="button" class="btn" id="btnScanProcessQueue">Processar fila pendente</button>
+            <button type="button" class="btn" id="btnScanBatch">Fila completa (agora)</button>
           </div>
+          <p class="hint" id="scanQueueStatus">Fila de scan vazia.</p>
           <div id="scanView"></div>
           <details style="margin-top:.5rem"><summary class="hint">JSON bruto</summary>
             <div class="mono" id="scanOut">Aguardando…</div>
@@ -311,7 +314,7 @@ td { padding: .55rem .5rem; border-bottom: 1px solid rgba(148,163,184,.08); vert
       <section class="panel" id="p-config">
         <div class="card">
           <h2>Sobre</h2>
-          <p class="hint" id="aboutTxt">Lexis Offline v5.1.1 — botões e dados locais. DataJud/DJEN precisam de internet. Abra sempre pelo EXE.</p>
+          <p class="hint" id="aboutTxt">Lexis Offline v5.1.8 — carteira local, scan com fila persistente, push M/N (Apps Script). DataJud/DJEN precisam de internet.</p>
           <p class="hint" id="pathInfo">DB: —</p>
         </div>
       </section>
@@ -338,6 +341,7 @@ td { padding: .55rem .5rem; border-bottom: 1px solid rgba(148,163,184,.08); vert
 (function () {
   "use strict";
   var rows = [];
+  var scanQueue = []; // {protocolo, cliente, enqueuedAt, status: pending|done|error, lastError?}
   var notes = [];
   var editId = null;
   var LS_URL = "lexis_offline_sheets_url";
@@ -430,7 +434,7 @@ td { padding: .55rem .5rem; border-bottom: 1px solid rgba(148,163,184,.08); vert
     if (!window.lexisOffline || !window.lexisOffline.saveDb) return;
     clearTimeout(window.__saveT);
     window.__saveT = setTimeout(function () {
-      window.lexisOffline.saveDb({ rows: rows, notes: notes, savedAt: new Date().toISOString() })
+      window.lexisOffline.saveDb({ rows: rows, notes: notes, scanQueue: scanQueue, savedAt: new Date().toISOString(), appVersion: "5.1.8" })
         .then(function () { /* silent */ })
         .catch(function () { toast("Falha ao salvar"); });
     }, 400);
@@ -441,8 +445,10 @@ td { padding: .55rem .5rem; border-bottom: 1px solid rgba(148,163,184,.08); vert
       if (data && Array.isArray(data.rows)) {
         rows = data.rows;
         notes = Array.isArray(data.notes) ? data.notes : [];
+        scanQueue = Array.isArray(data.scanQueue) ? data.scanQueue : [];
         renderAll();
-        toast("Carteira: " + rows.length + " processos");
+        var pend = scanQueue.filter(function (j) { return j.status === "pending"; }).length;
+        toast("Carteira: " + rows.length + " · fila scan: " + pend + " pendente(s)");
       }
     }).catch(function () {});
   }
@@ -543,6 +549,9 @@ td { padding: .55rem .5rem; border-bottom: 1px solid rgba(148,163,184,.08); vert
         obs: mov,
         movimentacao: mov,
         arquivado: /encerr|arquiv|cancel/i.test(status || ""),
+        created_by: "planilha",
+        atendido_por: null,
+        atendido_em: null,
       });
     }
     return out;
@@ -683,7 +692,7 @@ td { padding: .55rem .5rem; border-bottom: 1px solid rgba(148,163,184,.08); vert
   $("btnGotoImport").onclick = function () { nav("planob"); };
   $("btnSaveDisk").onclick = $("btnSaveDisk2").onclick = function () {
     if (!window.lexisOffline) return toast("Abra pelo EXE");
-    window.lexisOffline.saveDb({ rows: rows, notes: notes, savedAt: new Date().toISOString() })
+    window.lexisOffline.saveDb({ rows: rows, notes: notes, scanQueue: scanQueue, savedAt: new Date().toISOString(), appVersion: "5.1.8" })
       .then(function () { toast("Salvo no PC"); }).catch(function (e) { toast(String(e)); });
   };
   $("btnLoadDisk").onclick = function () { loadFromDisk(); };
@@ -906,6 +915,61 @@ td { padding: .55rem .5rem; border-bottom: 1px solid rgba(148,163,184,.08); vert
     return { cnj: formatCnj(d), datajud: dj, djen: dn };
   }
 
+
+  function enqueueScan(protocolo, cliente) {
+    var d = onlyDigits(protocolo);
+    if (d.length !== 20) return false;
+    var exists = scanQueue.some(function (j) { return onlyDigits(j.protocolo) === d && j.status === "pending"; });
+    if (exists) return false;
+    scanQueue.push({
+      protocolo: formatCnj(d),
+      cliente: cliente || "",
+      enqueuedAt: new Date().toISOString(),
+      status: "pending",
+    });
+    scheduleSave();
+    return true;
+  }
+  function renderScanQueueHint() {
+    var pend = scanQueue.filter(function (j) { return j.status === "pending"; });
+    var el = $("scanQueueStatus");
+    if (el) el.textContent = pend.length
+      ? ("Fila persistente: " + pend.length + " CNJ(s) pendente(s) — processar com internet.")
+      : "Fila de scan vazia.";
+  }
+  async function processScanQueue(limit) {
+    limit = limit || 15;
+    var pend = scanQueue.filter(function (j) { return j.status === "pending"; }).slice(0, limit);
+    if (!pend.length) { toast("Fila de scan vazia"); return; }
+    if ($("scanView")) $("scanView").innerHTML = '<p class="hint">Processando fila ' + pend.length + '…</p>';
+    var ok = 0;
+    for (var i = 0; i < pend.length; i++) {
+      var job = pend[i];
+      try {
+        var res = await runScan(job.protocolo);
+        applyScanToCarteira(res);
+        job.status = "done";
+        job.doneAt = new Date().toISOString();
+        job.lastError = null;
+        ok++;
+      } catch (e) {
+        job.status = "pending";
+        job.lastError = String(e && e.message ? e.message : e);
+      }
+      renderScanQueueHint();
+      scheduleSave();
+    }
+    // limpa done antigos (mantém últimos 30)
+    var done = scanQueue.filter(function (j) { return j.status === "done"; });
+    if (done.length > 30) {
+      var keep = done.slice(-30);
+      scanQueue = scanQueue.filter(function (j) { return j.status !== "done"; }).concat(keep);
+    }
+    scheduleSave();
+    renderAll();
+    toast("Fila: " + ok + "/" + pend.length + " processados");
+  }
+
   function queuePushRow(r) {
     if (!r || !r.protocolo) return;
     var d = onlyDigits(r.protocolo);
@@ -965,10 +1029,25 @@ td { padding: .55rem .5rem; border-bottom: 1px solid rgba(148,163,184,.08); vert
       if (ultimo) r.ultimo = ultimo;
       if (prazo) r.prazo = prazo;
       if (ex.ultimoTipo) r.movimentacao = ex.ultimoTipo + (ex.resumo ? " — " + ex.resumo.slice(0, 160) : "");
+      r.datajud_ultimo_nome = dj.ultimoNome || r.datajud_ultimo_nome || null;
+      r.datajud_ultimo_data = dj.ultimoData ? String(dj.ultimoData).slice(0, 10) : (r.datajud_ultimo_data || null);
+      r.djen_ultimo_resumo = (ex.resumo || "").slice(0, 240) || r.djen_ultimo_resumo || null;
+      r.djen_ultimo_tipo = ex.ultimoTipo || r.djen_ultimo_tipo || null;
+      r.scan_at = todayISO();
+      r.tem_atualizacao_pos_retorno = !!(ultimo && r.ultimo && ultimo >= (r.ultimo || ""));
+      var plain = (ex.resumo || "") + " " + (dj.ultimoNome || "");
+      r.indicio_busca_apreensao = /busca\s*e\s*apreens|apreens[aã]o\s*do\s*ve[ií]culo|liminar\s*de\s*busca/i.test(plain);
+      r.datajud_encerrado_tribunal = /arquiv|baix|extin|tr[aâ]nsito/i.test(String(dj.ultimoNome || ""));
+      // heurística leve (não substitui oportunidade-cumprimento do web)
+      if (/cumprimento\s*de\s*senten|art\.?\s*523|penhora/i.test(plain)) {
+        r.status_executivo = r.status_executivo || "indicio_cumprimento";
+        r.cumprimento_pendente_necessario = true;
+      }
       var bit = [];
       if (ex.ultimoTipo) bit.push(ex.ultimoTipo);
       if (ex.prazoDias) bit.push("prazo " + ex.prazoDias + "d úteis → " + (prazo || "?"));
       if (dj.ultimoNome) bit.push("DataJud: " + dj.ultimoNome);
+      if (r.indicio_busca_apreensao) bit.push("indício BA");
       if (bit.length) r.obs = bit.join(" · ");
       n++;
     });
@@ -980,6 +1059,13 @@ td { padding: .55rem .5rem; border-bottom: 1px solid rgba(148,163,184,.08); vert
     }
     return n;
   }
+  if ($("btnScanEnqueue")) $("btnScanEnqueue").onclick = function () {
+    var cnj = $("scanCnj").value;
+    if (enqueueScan(cnj, "")) { renderScanQueueHint(); toast("Enfileirado"); }
+    else toast("CNJ inválido ou já na fila");
+  };
+  if ($("btnScanProcessQueue")) $("btnScanProcessQueue").onclick = function () { processScanQueue(15); };
+  // Enfileirar ativos sem scan recente (opcional via lote)
   $("btnScanOne").onclick = async function () {
     $("scanOut").textContent = "Consultando…";
     $("scanView").innerHTML = '<p class="hint">Consultando DataJud + DJEN…</p>';
@@ -1156,15 +1242,20 @@ td { padding: .55rem .5rem; border-bottom: 1px solid rgba(148,163,184,.08); vert
   $("atendSave").onclick = function () {
     var r = rows.find(function (x) { return x.id === editId; });
     if (!r) return;
+    // NÃO sobrescrever dono (created_by); só registrar atendimento
+    if (!r.created_by) r.created_by = r.created_by || r.atendente || "import";
     r.prazo = $("atendPrazo").value || null;
     r.obs = $("atendObs").value || "";
     r.ultimo = todayISO();
+    r.atendido_por = r.atendido_por_operador || "operador-local";
+    r.atendido_em = new Date().toISOString();
     r.arquivado = $("atendEncerrar").checked;
     if (r.arquivado) r.status = "Arquivado";
+    queuePushRow(r);
     scheduleSave();
     $("modalAtend").classList.remove("show");
     renderAll();
-    toast("Atendimento salvo · retorno " + (r.prazo || "—"));
+    toast("Atendimento salvo · dono preservado · retorno " + (r.prazo || "—"));
   };
 
   ["qTarefas", "qProc", "filtroTarefas", "filtroProc"].forEach(function (id) {
@@ -1197,7 +1288,7 @@ td { padding: .55rem .5rem; border-bottom: 1px solid rgba(148,163,184,.08); vert
       });
     }
   });
-  toast("Lexis Offline v5.1.1.1 — fila sem prazo");
+  toast("Lexis Offline v5.1.8 — fila de scan persistente");
 })();
 </script>
 </body>

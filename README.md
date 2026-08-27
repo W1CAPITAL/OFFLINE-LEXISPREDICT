@@ -3,7 +3,7 @@
 App **Windows (Electron)** da carteira Lexis: processos, fila, scanner DataJud+DJEN, Plano B (planilha) e Assistente IA (MiniMax / Ollama).
 
 > **Não é o LexisPredict web.** O produto online completo está em [W1CAPITAL/LexisPredict](https://github.com/W1CAPITAL/LexisPredict).  
-> Este repo é o **EXE + fonte do shell offline** (versão **5.1.7**).
+> Este repo é o **EXE + fonte do shell offline** (versão **5.1.8**).
 
 ## Limite GitHub (25 MB)
 
@@ -53,7 +53,7 @@ OFFLINE-LEXISPREDICT/
    copy secrets\lexis-secrets.example.json secrets\lexis-secrets.json
    ```
    Edite a chave `sk-api-...` e rode o bat de aplicar de novo.
-5. Abra **Lexis Gabinete.exe** → deve aparecer **v5.1.7**.
+5. Abra **Lexis Gabinete.exe** → deve aparecer **v5.1.8**.
 6. **Plano B** → cole o link da planilha Google → **Carregar planilha**.
 
 ### Colunas da planilha W1
@@ -97,3 +97,10 @@ Uso interno W1 Capital / Lexis. Não redistribuir chaves de API.
 3. Após scan/edição: **Enviar retornos → planilha (M/N)**.
 
 Sem o webhook, use **Exportar CSV** (fallback manual).
+
+
+### v5.1.8
+- Versão única HTML/preload/README
+- Fila de scan **persistente** no `lexis-offline-db.json`
+- Atendimento: `created_by` preservado; grava `atendido_por` + `atendido_em`
+- Campos mínimos de scan alinhados ao web (heurística)
