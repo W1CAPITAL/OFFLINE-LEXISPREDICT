@@ -1,7 +1,7 @@
 @echo off
 chcp 65001 >nul
 cd /d "%~dp0\.."
-title OFFLINE-LEXISPREDICT v5.1.7 - aplicar fonte no EXE
+title OFFLINE-LEXISPREDICT v5.1.8 - aplicar fonte no EXE
 echo.
 echo FECHE o Lexis Gabinete.exe antes de continuar.
 pause
@@ -36,10 +36,10 @@ if exist "%CD%\secrets\lexis-secrets.json" (
 )
 
 echo.
-echo OK — recursos v5.1.7 aplicados em:
+echo OK — recursos v5.1.8 aplicados em:
 echo %DEST%
 echo.
 echo 1) Abra Lexis Gabinete.exe
-echo 2) Titulo deve mostrar v5.1.7
+echo 2) Titulo deve mostrar v5.1.8
 echo 3) Plano B - Carregar planilha Google
 pause

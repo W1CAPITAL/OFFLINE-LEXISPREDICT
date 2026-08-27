@@ -88,3 +88,12 @@ Hoje o offline é um **shell operacional** com port parcial (CSV M/N, DJEN, Data
 ## Licença
 
 Uso interno W1 Capital / Lexis. Não redistribuir chaves de API.
+
+
+## Escrita na planilha (v5.1.8)
+
+1. Siga `docs/SHEETS_WRITE_APPS_SCRIPT.md` (deploy Apps Script).
+2. No app: **Plano B** → cole a URL `/exec` em **Webhook Apps Script**.
+3. Após scan/edição: **Enviar retornos → planilha (M/N)**.
+
+Sem o webhook, use **Exportar CSV** (fallback manual).

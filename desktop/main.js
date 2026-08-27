@@ -515,6 +515,54 @@ ipcMain.handle("lexis-ai-chat", async (_e, payload) => {
   }
 });
 
+
+ipcMain.handle("lexis-sheets-push", async (_e, payload) => {
+  try {
+    const url = String((payload && payload.webhookUrl) || "").trim();
+    if (!url || !/^https:\/\/script\.google\.com\//i.test(url)) {
+      return {
+        ok: false,
+        error: "Configure a URL do Apps Script (deploy como aplicativo da web). Ver docs/SHEETS_WRITE_APPS_SCRIPT.md",
+      };
+    }
+    const rows = (payload && payload.rows) || [];
+    if (!Array.isArray(rows) || !rows.length) {
+      return { ok: false, error: "Nenhuma linha para enviar" };
+    }
+    // Apps Script free: lotes de até 50
+    const batch = rows.slice(0, 50).map(function (r) {
+      return {
+        protocolo: String(r.protocolo || "").trim(),
+        ultimo: String(r.ultimo || "").trim(),
+        prazo: String(r.prazo || "").trim(),
+        obs: String(r.obs || r.movimentacao || "").trim(),
+        status: String(r.status || "").trim(),
+        cliente: String(r.cliente || "").trim(),
+      };
+    });
+    const body = JSON.stringify({
+      action: "upsertRetornos",
+      sheetGid: (payload && payload.gid) || null,
+      rows: batch,
+    });
+    const r = await fetchBuffer(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "User-Agent": "LexisOffline/5.1.8" },
+      body,
+      timeout: 60000,
+    });
+    const text = r.body.toString("utf8");
+    let json = null;
+    try { json = JSON.parse(text); } catch (_) {}
+    if (r.status >= 200 && r.status < 400) {
+      return { ok: true, status: r.status, result: json || text, sent: batch.length };
+    }
+    return { ok: false, status: r.status, error: (json && json.error) || text.slice(0, 400) };
+  } catch (e) {
+    return { ok: false, error: e.message || String(e) };
+  }
+});
+
 ipcMain.handle("lexis-open-external", async (_e, url) => {
   if (url && /^https?:/i.test(url)) await shell.openExternal(url);
   return true;
