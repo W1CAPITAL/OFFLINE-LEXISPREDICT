@@ -46,6 +46,7 @@
     veredito: ["Veredito", "Consulta DataJud + DJEN"],
     scanner: ["Scanner Omnipresente", "Varredura DataJud + DJEN · logs"],
     notas: ["Notas", "Anotações internas"],
+    equipe: ["Equipe", "Usuários e permissões"],
     config: ["Configurações", "Vínculo com a planilha"]
   };
 
@@ -515,6 +516,14 @@
     if (!sess) return true;
     return ownMatches(c) || !String(c.responsavel || "").trim();
   }
+  var ROLE_ACCESS = { assistente: 10, atendente: 10, responsavel: 10, supervisor: 20, superadmin: 30 };
+  function roleLevel(p) {
+    p = String(p || "assistente").trim().toLowerCase();
+    if (ROLE_ACCESS[p] !== undefined) return ROLE_ACCESS[p];
+    for (var k in ROLE_ACCESS) if (k.toLowerCase() === p) return ROLE_ACCESS[k];
+    return 10;
+  }
+  function canAdmin() { return sess && roleLevel(sess.perfil) >= 20; }
   function saveSess() {
     try { localStorage.setItem(LS.sess, JSON.stringify(sess || {})); } catch (e) {}
   }
@@ -526,14 +535,17 @@
     return null;
   }
   function applySessionUI() {
-    var chip = $("userChip"), lo = $("btnLogout");
+    var chip = $("userChip"), lo = $("btnLogout"), ne = $("navEquipe");
     if (sess) {
       if (chip) chip.textContent = sess.nome + (sess.perfil ? " · " + sess.perfil : "");
       if (lo) lo.style.display = "";
+      if (ne) ne.style.display = canAdmin() ? "" : "none";
+      if (!canAdmin() && current === "equipe") nav("dashboard");
       setLoginOverlay(false);
     } else {
       if (chip) chip.textContent = "—";
       if (lo) lo.style.display = "none";
+      if (ne) ne.style.display = "none";
     }
   }
   function setLoginOverlay(show) {
@@ -544,27 +556,34 @@
   function askLogin() {
     applySessionUI();
     setLoginOverlay(true);
-    try { setTimeout(function () { if ($("loginUser")) $("loginUser").focus(); }, 60); } catch (e) {}
+    try { setTimeout(function () { if ($("loginEmail")) $("loginEmail").focus(); }, 60); } catch (e) {}
   }
-  function doLogin(usuario, senha) {
+  function doLogin(email, senha) {
     var msg = $("loginMsg");
-    if (msg) { msg.className = "hint"; msg.textContent = "Validando na planilha…"; }
-    return api("auth", { usuario: usuario, senha: senha }).then(function (r) {
+    var btn = $("btnLogin");
+    var btnText = $("btnLoginText");
+    var btnLoader = $("btnLoginLoader");
+    var btnArrow = $("btnLoginArrow");
+    if (msg) { msg.className = "login-msg info"; msg.textContent = "Validando na planilha…"; }
+    if (btn) { btn.disabled = true; if (btnText) btnText.textContent = "Sincronizando..."; if (btnLoader) btnLoader.style.display = "block"; if (btnArrow) btnArrow.style.display = "none"; }
+    return api("auth", { usuario: email, senha: senha }).then(function (r) {
       if (r && r.ok && r.json && r.json.ok) {
         sess = { token: r.json.token, nome: r.json.user.nome, perfil: r.json.user.perfil, escritorio: r.json.user.escritorio, usuario: r.json.user.usuario };
         saveSess();
         logSync("login: ok", sess.usuario + " · " + sess.perfil);
         applySessionUI();
-        if (msg) { msg.className = "hint ok-msg"; msg.textContent = "Entrou como " + sess.nome + " (" + sess.perfil + ")"; }
+        if (msg) { msg.className = "login-msg ok"; msg.textContent = "Entrou como " + sess.nome + " (" + sess.perfil + ")"; }
         return { ok: true, sess: sess };
       }
       var err = (r && r.json && r.json.error) || "falha (veja o Config/Testar webhook)";
       logSync("login: recusado", err);
-      if (msg) { msg.className = "hint err-msg"; msg.textContent = "Acesso negado: " + err; }
+      if (msg) { msg.className = "login-msg err"; msg.textContent = "Acesso negado: " + err; }
       return { ok: false, error: err };
     }).catch(function (e) {
-      if (msg) { msg.className = "hint err-msg"; msg.textContent = "Sem conexão: " + (e && e.message ? e.message : "erro"); }
+      if (msg) { msg.className = "login-msg err"; msg.textContent = "Sem conexão: " + (e && e.message ? e.message : "erro"); }
       return { ok: false, error: e && e.message ? e.message : "sem conexão" };
+    }).finally(function () {
+      if (btn) { btn.disabled = false; if (btnText) btnText.textContent = "Acessar Sistema"; if (btnLoader) btnLoader.style.display = "none"; if (btnArrow) btnArrow.style.display = ""; }
     });
   }
   function logout() {
@@ -1217,6 +1236,65 @@
     var ls = $("cfgLastSync");
     if (ls) ls.textContent = "Última atividade de sync: " + lastSyncLine();
   }
+
+  /* ============================ equipe (supervisor/superadmin) ============================ */
+  function loadEquipe() {
+    var box = $("eqTable"), st = $("eqStatus");
+    if (!canAdmin()) { if (box) box.innerHTML = ""; return; }
+    if (st) st.textContent = "Carregando usuários…";
+    api("users", {}).then(function (r) {
+      if (!r || !r.ok || !r.json || !r.json.ok) {
+        var err = (r && r.json && r.json.error) || "sem resposta";
+        if (st) st.textContent = "Falha: " + err;
+        if (box) box.innerHTML = '<div class="empty">' + esc(err) + "</div>";
+        return;
+      }
+      if (st) st.textContent = r.json.users.length + " usuário(s) · via planilha";
+      if (!box) return;
+      var L = roleLevel(sess.perfil);
+      box.innerHTML = "<table><thead><tr><th>Login</th><th>Nome</th><th>Perfil</th><th>Ati.</th><th>Ações</th></tr></thead><tbody>" +
+        r.json.users.map(function (u) {
+          var me = sess && sess.usuario === u.login;
+          var lock = roleLevel(u.perfil) > L;
+          var canTouch = !me && !lock;
+          var ban = String(u.ativo) === "sim" ? "Banir" : "Ativar";
+          var cls = String(u.ativo) === "sim" ? "ok-msg" : "err-badge";
+          return "<tr><td><b>" + esc(u.login) + "</b>" + (me ? ' <span class="mini">(você)</span>' : "") + "</td>" +
+            "<td>" + esc(u.nome) + "</td>" +
+            "<td>" + esc(u.perfil) + "</td>" +
+            "<td><span class='" + cls + "'>" + (String(u.ativo) === "sim" ? "ativo" : "banido") + "</span></td>" +
+            "<td>" + (canTouch
+              ? "<button class='mini-btn' data-eqban='" + esc(u.login) + "'>" + ban + "</button>"
+              : "<span class='mini'>" + (lock ? "acima de você" : "") + (me ? "você mesmo" : "") + "</span>") + "</td></tr>";
+        }).join("") + "</tbody></table>";
+      box.querySelectorAll("[data-eqban]").forEach(function (b) {
+        b.addEventListener("click", function () {
+          var login = b.getAttribute("data-eqban");
+          var acao = b.textContent.trim() === "Ativar" ? "sim" : "nao";
+          if (acao === "nao" && !confirm("Banir " + login + "? Ele não vai mais conseguir entrar.")) return;
+          api("user_set", { login: login, ativo: acao }).then(function (r) {
+            if (r && r.ok && r.json && r.json.ok) { toast("Atualizado: " + login); loadEquipe(); }
+            else toast((r && r.json && r.json.error) || "falha ao atualizar", "err-badge");
+          });
+        });
+      });
+    });
+  }
+  function novoUsuario() {
+    var login = String($("eqLogin").value || "").trim().toLowerCase();
+    var nome = String($("eqNome").value || "").trim();
+    var senha = String($("eqSenha").value || "");
+    var perfil = String($("eqPerfil").value || "assistente");
+    var escr = String($("eqEscritorio").value || "").trim();
+    if (!login || senha.length < 4) { toast("Login e senha (4+ caracteres) são obrigatórios", "err-badge"); return; }
+    api("user_create", { login: login, nome: nome || login, senha: senha, perfil: perfil, escritorio: escr }).then(function (r) {
+      if (r && r.ok && r.json && r.json.ok) {
+        toast("Usuário criado: " + login);
+        $("eqLogin").value = ""; $("eqNome").value = ""; $("eqSenha").value = ""; $("eqEscritorio").value = "";
+        loadEquipe();
+      } else toast((r && r.json && r.json.error) || "falha ao criar", "err-badge");
+    });
+  }
   function renderAll() {
     renderDashboard();
     renderFila();
@@ -1245,6 +1323,7 @@
       renderScanUI();
       scanTab($("sctab-logs") && $("sctab-logs").style.display === "block" ? "logs" : "varredura");
     }
+    if (name === "equipe") loadEquipe();
   }
 
   /* ============================ atendimento / edição ============================ */
@@ -2046,41 +2125,112 @@
     };
     $("btnTestWebhook").onclick = testWebhook;
   }
+  var REG_TOKEN = "Azadsd5a96d5.6as5sa2d652as+94s9";
+  var remoteAccessEnabled = false;
   function bindLogin() {
-    $("btnLogin").onclick = function () {
-      var u = ($("loginUser") && $("loginUser").value.trim()) || "";
-      var p = ($("loginPass") && $("loginPass").value) || "";
-      var m = $("loginMsg");
-      if (!u || !p) { if (m) { m.className = "hint err-msg"; m.textContent = "Preencha usuário e senha."; } return; }
-      if (!cfg.webhook && m) { m.className = "hint err-msg"; m.textContent = "Configure a URL do webhook em Config antes."; }
-      doLogin(u, p).then(function (r) {
-        if (r.ok && cfg.url && window.lexisOffline) {
-          toast("Logado · sincronizando " + r.sess.usuario, "ok-msg");
-          syncAll();
-        }
-      });
-      if ($("loginPass")) $("loginPass").value = "";
-    };
-    var pp = $("loginPass"), lu2 = $("loginUser");
-    function enterGo(e) { if (e.key === "Enter" || (e.keyCode && e.keyCode === 13)) $("btnLogin").click(); }
-    if (pp) pp.addEventListener("keydown", enterGo);
-    if (lu2) lu2.addEventListener("keydown", enterGo);
-    var lc = $("btnLoginConfig");
-    if (lc) lc.onclick = function () { setLoginOverlay(false); nav("config"); toast("Confira o webhook e o token, depois volte para o login."); };
-    var ll = $("btnLoginLocal");
-    if (ll) ll.onclick = function () {
-      localMode = true;
-      sess = null; rowsAll = [];
-      try { localStorage.removeItem(LS.sess); } catch (e) {}
-      applySessionUI();
-      toast("Modo local — sem separação por usuário");
-      if ($("loginMsg")) {
-        $("loginMsg").textContent = "Modo local (sem servidor).";
-        $("loginMsg").className = "hint";
+    var form = $("loginForm");
+    var emailEl = $("loginEmail");
+    var passEl = $("loginPass");
+    var tokenEl = $("loginToken");
+    var tokenField = $("loginTokenField");
+    var msgEl = $("loginMsg");
+    var btnLogin = $("btnLogin");
+    var btnLoginText = $("btnLoginText");
+    var btnLoginLoader = $("btnLoginLoader");
+    var btnLoginArrow = $("btnLoginArrow");
+    var btnConfig = $("btnLoginConfig");
+    var btnLocal = $("btnLoginLocal");
+    var btnRemote = $("btnRemoteAccess");
+    var btnRequest = $("btnRequestInstance");
+
+    function setLoading(isLoading) {
+      if (btnLogin) btnLogin.disabled = isLoading;
+      if (btnLoginText) btnLoginText.textContent = isLoading ? "Sincronizando..." : "Acessar Sistema";
+      if (btnLoginLoader) btnLoginLoader.style.display = isLoading ? "block" : "none";
+      if (btnLoginArrow) btnLoginArrow.style.display = isLoading ? "none" : "";
+    }
+
+    function showMsg(text, type) {
+      if (!msgEl) return;
+      msgEl.textContent = text;
+      msgEl.className = "login-msg " + (type || "info");
+    }
+
+    function checkToken() {
+      var val = (tokenEl && tokenEl.value.trim()) || "";
+      if (val === REG_TOKEN) {
+        if (tokenField) tokenField.classList.add("visible");
+        showMsg("Token válido — cadastro liberado", "ok");
+      } else {
+        if (tokenField) tokenField.classList.remove("visible");
       }
-    };
+    }
+
+    if (form) {
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        var email = (emailEl && emailEl.value.trim().toLowerCase()) || "";
+        var pass = (passEl && passEl.value) || "";
+        if (!email || !pass) { showMsg("Preencha e-mail e senha.", "err"); return; }
+        if (!cfg.webhook) { showMsg("Configure a URL do webhook em Configurar antes.", "err"); return; }
+        doLogin(email, pass).then(function (r) {
+          if (r.ok && cfg.url && window.lexisOffline) {
+            toast("Logado · sincronizando " + r.sess.usuario, "ok-msg");
+            syncAll();
+          }
+        });
+        if (passEl) passEl.value = "";
+      });
+    }
+
+    function enterGo(e) { if (e.key === "Enter" || (e.keyCode && e.keyCode === 13)) { if (btnLogin) btnLogin.click(); } }
+    if (emailEl) emailEl.addEventListener("keydown", enterGo);
+    if (passEl) passEl.addEventListener("keydown", enterGo);
+    if (tokenEl) {
+      tokenEl.addEventListener("keydown", enterGo);
+      tokenEl.addEventListener("input", checkToken);
+      tokenEl.addEventListener("paste", function () { setTimeout(checkToken, 0); });
+    }
+
+    if (btnConfig) {
+      btnConfig.onclick = function () { setLoginOverlay(false); nav("config"); toast("Confira o webhook e o token, depois volte para o login."); };
+    }
+
+    if (btnRemote) {
+      btnRemote.addEventListener("click", function () {
+        remoteAccessEnabled = !remoteAccessEnabled;
+        btnRemote.classList.toggle("active", remoteAccessEnabled);
+        btnRemote.setAttribute("aria-pressed", remoteAccessEnabled);
+        var txt = remoteAccessEnabled ? "Acesso remoto ATIVADO — app acessível sem login" : "Acesso remoto desativado";
+        showMsg(txt, remoteAccessEnabled ? "ok" : "info");
+        try { localStorage.setItem("lexis_remote_access", remoteAccessEnabled ? "1" : "0"); } catch(_) {}
+      });
+      try { if (localStorage.getItem("lexis_remote_access") === "1") { remoteAccessEnabled = true; btnRemote.classList.add("active"); btnRemote.setAttribute("aria-pressed", "true"); } } catch(_) {}
+    }
+
+    if (btnLocal) {
+      btnLocal.onclick = function () {
+        localMode = true;
+        sess = null; rowsAll = [];
+        try { localStorage.removeItem(LS.sess); } catch (e) {}
+        applySessionUI();
+        toast("Modo local — sem separação por usuário");
+        showMsg("Modo local (sem servidor).", "info");
+      };
+    }
+
+    if (btnRequest) {
+      btnRequest.onclick = function (e) { e.preventDefault(); toast("Redirecionando para solicitação de instância..."); };
+    }
+
     var lo = $("btnLogout");
     if (lo) lo.onclick = logout;
+    var eqNew = $("btnEqNew");
+    if (eqNew) eqNew.onclick = novoUsuario;
+    var eqRef = $("btnEqRefresh");
+    if (eqRef) eqRef.onclick = loadEquipe;
+
+    try { if (emailEl) setTimeout(function () { emailEl.focus(); }, 100); } catch(_) {}
   }
   function bindRows() {
     document.body.addEventListener("click", function (e) {

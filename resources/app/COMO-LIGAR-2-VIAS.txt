@@ -5,18 +5,25 @@ OBJETIVO: cada usuário loga com usuário/senha (validados NO SERVIDOR via
 Apps Script). Você só vê os seus casos (coluna RESPONSAVEL); a aba
 "Processos da empresa" mostra tudo (leitura). Dossiê sai em PDF.
 
-PASSO 1 — ABA "Usuarios" (LOGINS E SENHAS)
+PASSO 1 — ABA "Usuarios" (LOGINS, SENHAS E PERFIS)
   Na planilha crie uma aba chamada  Usuarios  com o cabeçalho exato:
      login | nome | senha | perfil | escritorio | ativo
    * login: minúsculas, sem espaço (ex: maria)
-   * perfil: assistente / atendente / responsavel  (só afeta o rótulo)
+   * perfil (define o que cada um vê e pode):
+       assistente / atendente / responsavel -> enxergam SÓ os próprios
+          casos (coluna Responsavel); não administram usuários.
+       supervisor       -> vê TODOS os processos da empresa inteira,
+          pode criar usuários e banir pessoas (não mexe em superadmin).
+       superadmin       -> pode tudo (perfis iguais ou inferiores).
    * escritorio: opcional
-   * ativo: sim / nao
-  As senhas são guardadas como HASH SHA-256 (não em texto puro). O jeito
-  mais fácil de criar um usuário: no Apps Script, menu "Léxis" ->
-  "Criar usuário (login/senha)" (pede login, nome e senha e já grava o hash).
-  (Também dá para gerar o hash pelo navegador chamando o webhook com
-   action=hash&senha=SUA_SENHA e colar na coluna senha.)
+   * ativo: sim / nao  (nao = banido; não consegue mais entrar)
+  As senhas são guardadas como HASH SHA-256 (não em texto puro). Dois jeitos:
+   a) Apps Script -> menu "Léxis" -> "Criar usuário (login/senha)";
+   b) com um supervisor/superadmin logado no app -> aba "Equipe"
+      (botão "Criar usuário" grava o hash sozinho).
+  Supervisor+ também banem/ativam pessoas pela aba "Equipe" do app
+  (coluna Ações, botão Banir/Ativar) — o efeito é imediato, a sessão do
+  banido é invalidada no próximo sync.
 
 PASSO 2 — ABA DA CARTEIRA: COLUNA "Responsavel"
   Na aba principal (a que tem Protocolo), crie/renomeie a coluna:
@@ -27,7 +34,8 @@ PASSO 2 — ABA DA CARTEIRA: COLUNA "Responsavel"
    - processo SEM Responsavel: aparece para todos (é um "pool" de casos
      sem dono — evita esconder registro de alguém);
    - os demais: ficam INVISÍVEIS para o usuário logado.
-  A aba "Processos da empresa" mostra todos (leitura), como você pediu.
+  Supervisor e superadmin VEEM TODOS os processos em todas as telas
+  (painel/dossiê etc.), pois o servidor devolve a carteira inteira para eles.
 
 PASSO 3 — INSTALE O APPS SCRIPT (uma vez)
   1. Planilha -> Extensões -> Apps Script.
@@ -49,18 +57,24 @@ PASSO 4 — CONFIGURE O DESKTOP
 SEGURANÇA (leia)
  - A leitura NÃO usa mais o CSV público: o desktop chama action=list com o
    token de sessão e o servidor devolve SÓ os casos dele (minhas) + um
-   resumo "todas" usado pela aba Processos da empresa.
- - action=write recusa linhas cujo Responsavel não é o solicitante.
+   resumo "todas" (supervisor/superadmin recebem tudo nas duas listas).
+ - action=write recusa linhas cujo Responsavel não é o solicitante
+   (supervisor/superadmin podem escrever em qualquer linha).
+ - Usuário banido (ativo=nao) perde a sessão no próximo sync.
+ - Ninguém cria perfil ACIMA do seu, nem bane a si mesmo.
  - Sessão expira em 8h e renova a cada sync.
  - Recomendado: compartilhe a planilha apenas com VOCÊ, não "qualquer
    pessoa com o link" (controle de acesso = o webhook).
 
 COMO FUNCIONA (ações do webhook)
-  auth  -> valida login/senha, devolve token de sessão
-  list  -> devolve minhas (só as suas) + todas (para a aba empresa)
-  write -> grava; valida que cada linha é do seu responsavel
-  ping  -> teste do botão "Testar webhook"
-  auto  -> revalida sessão ao abrir o app
+  auth         -> valida login/senha, devolve token de sessão
+  list         -> devolve minhas (as suas) + todas (Supervisor+ vêem tudo)
+  write        -> grava; valida que cada linha é do seu responsavel
+  ping         -> teste do botão "Testar webhook"
+  auto         -> revalida sessão ao abrir o app
+  users        -> lista os usuários (só supervisor/superadmin)
+  user_create  -> cria usuário já com hash (só supervisor/superadmin)
+  user_set     -> banir/ativar/editar perfil (só supervisor/superadmin)
 
 OFFLINE: sem internet, as edições vão para uma fila local (outbox) e são
 enviadas quando você clicar "Sincronizar". O botão "Entrar em modo local"
