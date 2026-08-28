@@ -96,7 +96,7 @@ function doGet(e) {
   return out_({
     ok: true,
     pong: true,
-    app: "lexis-db-supabase-sheet",
+    app: "lexis-gabinete-sync",
     ts: new Date().toISOString(),
     hint: "POST com {token, ping:true} ou {token, rows:[...]}"
   });

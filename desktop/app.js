@@ -605,45 +605,41 @@
   function testWebhook() {
     if (!$("cfgStatus")) return;
     var st = $("cfgStatus");
-    // SEMPRE lê dos inputs (não usa cfg velho / não apaga link)
     readCfgFromInputs(false);
+    if (!cfg.token) cfg.token = "w1-fase1-2026";
     st.className = "hint";
-    st.textContent = "Testando…";
+    st.textContent = "Testando webhook…";
     if (!cfg.webhook) {
       st.className = "hint err-msg";
-      st.textContent = "Falta a URL do webhook (deve terminar em /exec).";
+      st.textContent = "Cole a URL do webhook (/exec) e clique Salvar.";
       return;
     }
-    if (!/script\.google\.com\/macros\/s\//i.test(cfg.webhook)) {
-      st.className = "hint err-msg";
-      st.textContent = "URL inválida. Use a URL de implantação do Apps Script terminando em /exec.";
-      return;
-    }
-    postRows({ token: cfg.token || "w1-fase1-2026", ping: true }).then(function (r) {
+    cfg.webhook = String(cfg.webhook).trim().replace(/\/dev(\b|$)/, "/exec");
+    saveCfg();
+    postRows({ token: cfg.token, ping: true }).then(function (r) {
+      var raw = String((r && (r.raw || r.text)) || "").slice(0, 280);
       if (r && r.auth) {
         st.className = "hint err-msg";
-        st.textContent = "Google pediu login. Reimplante o script com acesso: QUALQUER PESSOA (não só você).";
+        st.textContent = "Google redirecionou para login. Em Implantar: Quem pode acessar = Qualquer pessoa + Nova versão.";
         return;
       }
-      if (r && r.json && (r.json.pong || r.json.ok)) {
+      if (r && r.json && (r.json.pong === true || r.json.ok === true)) {
         st.className = "hint ok-msg";
-        st.textContent = "Webhook OK — planilha pronta para receber edições.";
+        st.textContent = "Webhook OK ✓ " + (r.json.app || "") + " — pode sincronizar.";
         toast("Webhook conectado", "ok-msg");
         return;
       }
       st.className = "hint err-msg";
-      var detail = (r && r.json && r.json.error) || (r && r.error) || "";
-      var raw = (r && r.raw) || (r && r.text) || "";
-      if (/<html|<body|accounts\.google|Sign in/i.test(String(raw).slice(0, 400))) {
-        st.textContent = "Resposta HTML do Google (HTTP " + (r && r.http || "?") + "). Deploy: Aplicativo da web → acesso QUALQUER PESSOA → URL /exec → Nova versão após editar o código.";
-      } else if (detail) {
-        st.textContent = "Webhook falhou: " + detail + (r && r.http ? " (HTTP " + r.http + ")" : "");
+      if (/<html|accounts\.google|Sign in/i.test(raw)) {
+        st.textContent = "HTML do Google (não JSON). Nova implantação /exec + acesso Qualquer pessoa. Raw: " + raw.slice(0, 80);
+      } else if (r && r.json && r.json.error) {
+        st.textContent = "Script respondeu erro: " + r.json.error + " (confira TOKEN = w1-fase1-2026)";
       } else {
-        st.textContent = "Webhook respondeu algo inesperado (HTTP " + (r && r.http || "?") + "). Cole o script LEXIS-DB-AppsScript.gs e crie NOVA implantação /exec.";
+        st.textContent = "Resposta inesperada HTTP " + (r && r.http) + ". Raw: " + (raw || "(vazio)") + " — atualize a implantação (Nova versão).";
       }
     }).catch(function (e) {
       st.className = "hint err-msg";
-      st.textContent = "Erro de rede: " + (e && e.message ? e.message : e);
+      st.textContent = "Rede: " + (e && e.message ? e.message : e);
     });
   }
 
