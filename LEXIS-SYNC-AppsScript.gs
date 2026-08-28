@@ -1,355 +1,536 @@
 /**
- * LEXIS GABINETE — Banco em planilha (estilo Supabase)
- * =====================================================
- * Abas: Usuarios | Processos | (opcionais: Notes, Honorarios…)
+ * LEXIS GABINETE v6.2 — Sincronização 2 vias + LOGIN POR USUÁRIO
+ * =================================================================
+ * Cada usuário loga com usuário/senha (validados AQUI no servidor).
+ * Cada processo tem uma coluna RESPONSAVEL = login (ou nome) do dono.
+ * - action=auth  : valida usuário/senha (SHA-256) e devolve token de sessão
+ * - action=list  : devolve SÓ os casos do usuário (minhas) + todas (aba empresa)
+ * - action=write : grava; RECUSA linhas cujo responsavel não é o solicitante
+ * - action=ping  : teste do botão "Testar webhook"
  *
- * DEPLOY:
- * 1) Extensões → Apps Script → cole este arquivo
- * 2) TOKEN = senha secreta alinhada ao desktop
- * 3) Implantar → Aplicativo da web → Eu → Qualquer pessoa
- * 4) Cole a URL /exec no app (Configurações → webhook)
+ * DEPLOY (1x):
+ *  1. Na planilha: crie uma aba chamada  Usuarios  com cabeçalho:
+ *       login | nome | senha | perfil | escritorio | ativo
+ *     (senha = hash SHA-256, gere no rodapé/script; ativo=sim/não)
+ *  2. Na aba da carteira, crie/renomeie a coluna  Responsavel
+ *     (vale o login ou o nome do usuário dono de cada processo).
+ *  3. Extensões -> Apps Script -> cole este arquivo -> Implantar ->
+ *     "Aplicativo da web" -> Executar como: "Eu" -> Acesso: "Qualquer pessoa".
+ *  4. No menu do editor "Léxis" use "Criar usuário" (pede login/nome/senha/perfil).
  *
- * Menu: Léxis → Garantir abas | Criar usuário | Listar usuários
+ * SEGURANÇA: o acesso web fica como "Qualquer pessoa" porque Apps Script
+ * gratuito não oferece autenticação própria — mas a validação de usuário/senha,
+ * a geração do token de sessão (8h) e o filtro de linhas são feitos AQUI.
+ * A planilha em si deve estar compartilhada SOMENTE com você (não "qualquer
+ * pessoa com o link"), pois o desktop só passa por este webhook.
  */
 
-var TOKEN = "w1-fase1-2026";
-var USERS_SHEET = "Usuarios";
-var PROC_SHEET = "Processos";
-var HEADER_ROW = 1;
+var TOKEN = "w1-fase1-2026";                 // <<< troque por um token seu (vai no Config do app)
+var SHEET_NAME = "Processos";                // aba principal da carteira
+var KEY_COL = "Protocolo";                   // cabeçalho da coluna-chave (CNJ)
+var OWNER_FIELD = "Responsavel";             // coluna que identifica o DONO de cada processo
+var USERS_SHEET = "Usuarios";                // aba com login/nome/senha/perfil/escritorio/ativo
+var HEADER_ROW = 1;                          // linha dos cabeçalhos
+var SESS_DURATION_MS = 8 * 3600 * 1000;      // token de sessão dura 8h (renovado a cada list/write)
+var SESS_PREFIX = "lex_sess_";
 
-var USER_HEADERS = ["login", "nome", "senha", "perfil", "escritorio", "ativo", "email", "auth_user_id", "id"];
-var PROC_HEADERS = [
-  "Protocolo", "Cliente", "Status", "Situacao", "UltimoRetorno", "ProximoRetorno",
-  "Advogado", "Escritorio", "Tribunal", "Telefone", "CreatedBy", "AtendidoPor",
-  "Observacao", "DatajudEncerrado", "EmpresaId"
-];
-
-function onOpen() {
-  SpreadsheetApp.getUi()
-    .createMenu("Léxis")
-    .addItem("Garantir abas e cabeçalhos", "ensureSheets")
-    .addItem("Criar usuário (login/senha)", "uiCriarUsuario")
-    .addItem("Listar usuários", "uiListarUsuarios")
-    .addToUi();
+function norm(s) {
+  return String(s || "").replace(/\s+/g, "").replace(/[^\w\u00C0-\u017F/]/g, "").toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
-function ensureSheets() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  ensureSheetWithHeaders_(ss, USERS_SHEET, USER_HEADERS);
-  ensureSheetWithHeaders_(ss, PROC_SHEET, PROC_HEADERS);
-  SpreadsheetApp.getUi().alert("Abas Usuarios e Processos OK.");
-}
-
-function ensureSheetWithHeaders_(ss, name, headers) {
-  var sh = ss.getSheetByName(name);
-  if (!sh) sh = ss.insertSheet(name);
-  var lastCol = Math.max(sh.getLastColumn(), headers.length);
-  var existing = sh.getRange(1, 1, 1, lastCol).getValues()[0].map(function (h) {
-    return String(h || "").trim();
-  });
-  var empty = existing.every(function (h) { return !h; });
-  if (empty) {
-    sh.getRange(1, 1, 1, headers.length).setValues([headers]);
-    sh.setFrozenRows(1);
-    return;
-  }
-  // completa colunas que faltam
-  headers.forEach(function (h) {
-    if (existing.indexOf(h) < 0) {
-      var col = sh.getLastColumn() + 1;
-      sh.getRange(1, col).setValue(h);
-      existing.push(h);
-    }
-  });
-}
-
-function sha256_(text) {
-  var raw = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(text || ""), Utilities.Charset.UTF_8);
-  return raw.map(function (b) {
-    var v = (b < 0 ? b + 256 : b).toString(16);
-    return v.length === 1 ? "0" + v : v;
-  }).join("");
-}
-
-function uuid_() {
-  return Utilities.getUuid();
-}
-
-function normPerfil_(p) {
-  var s = String(p || "operador").toLowerCase().trim();
-  if (/super\s*admin|superadmin/.test(s)) return "superadmin";
-  if (/supervis/.test(s)) return "supervisor";
-  if (/admin/.test(s)) return "administrador";
-  if (/assist/.test(s)) return "assistente";
-  return "operador";
-}
-
-function getUsersSheet_() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  ensureSheetWithHeaders_(ss, USERS_SHEET, USER_HEADERS);
-  return ss.getSheetByName(USERS_SHEET);
-}
-
-function headerMap_(sh) {
-  var lastCol = Math.max(1, sh.getLastColumn());
-  var headers = sh.getRange(HEADER_ROW, 1, 1, lastCol).getValues()[0].map(function (h) {
-    return String(h || "").trim();
-  });
-  var map = {};
-  headers.forEach(function (h, i) {
-    if (h) map[h.toLowerCase()] = i;
-  });
-  return { headers: headers, map: map };
-}
-
-function criarUsuario(login, nome, senha, perfil, escritorio, email) {
-  login = String(login || "").trim().toLowerCase();
-  if (!login || !senha) throw new Error("login e senha obrigatórios");
-  var sh = getUsersSheet_();
-  var hm = headerMap_(sh);
-  var data = sh.getDataRange().getValues();
-  for (var r = 1; r < data.length; r++) {
-    var rowLogin = String(data[r][hm.map.login] || "").trim().toLowerCase();
-    var rowEmail = String(data[r][hm.map.email] || "").trim().toLowerCase();
-    if (rowLogin === login || (email && rowEmail === String(email).toLowerCase())) {
-      throw new Error("login/email já existe");
-    }
-  }
-  var row = [];
-  USER_HEADERS.forEach(function (h) {
-    var v = "";
-    if (h === "login") v = login;
-    else if (h === "nome") v = nome || login;
-    else if (h === "senha") v = sha256_(senha);
-    else if (h === "perfil") v = normPerfil_(perfil);
-    else if (h === "escritorio") v = escritorio || "";
-    else if (h === "ativo") v = "sim";
-    else if (h === "email") v = (email || login).toLowerCase();
-    else if (h === "auth_user_id" || h === "id") v = uuid_();
-    row.push(v);
-  });
-  // alinha à ordem real do cabeçalho
-  var out = hm.headers.map(function (h) {
-    var i = USER_HEADERS.indexOf(h);
-    return i >= 0 ? row[i] : "";
-  });
-  sh.appendRow(out);
-  return { ok: true, login: login, perfil: normPerfil_(perfil) };
-}
-
-function uiCriarUsuario() {
-  var ui = SpreadsheetApp.getUi();
-  var login = ui.prompt("Login", "Login (ou e-mail):", ui.ButtonSet.OK_CANCEL);
-  if (login.getSelectedButton() !== ui.Button.OK) return;
-  var nome = ui.prompt("Nome", "Nome completo:", ui.ButtonSet.OK_CANCEL);
-  if (nome.getSelectedButton() !== ui.Button.OK) return;
-  var senha = ui.prompt("Senha", "Senha forte:", ui.ButtonSet.OK_CANCEL);
-  if (senha.getSelectedButton() !== ui.Button.OK) return;
-  var perfil = ui.prompt("Perfil", "superadmin | supervisor | administrador | operador", ui.ButtonSet.OK_CANCEL);
-  if (perfil.getSelectedButton() !== ui.Button.OK) return;
-  try {
-    var r = criarUsuario(login.getResponseText(), nome.getResponseText(), senha.getResponseText(), perfil.getResponseText(), "", login.getResponseText());
-    ui.alert("Usuário criado: " + r.login + " (" + r.perfil + ")");
-  } catch (e) {
-    ui.alert("Erro: " + e.message);
-  }
-}
-
-function uiListarUsuarios() {
-  var sh = getUsersSheet_();
-  var data = sh.getDataRange().getValues();
-  var lines = [];
-  for (var r = 1; r < data.length; r++) {
-    if (!data[r][0]) continue;
-    lines.push(data[r][0] + " | " + data[r][1] + " | " + data[r][3] + " | " + data[r][5]);
-  }
-  SpreadsheetApp.getUi().alert(lines.length ? lines.join("\n") : "Nenhum usuário");
-}
-
-function listUsersPublic_() {
-  var sh = getUsersSheet_();
-  var hm = headerMap_(sh);
-  var data = sh.getDataRange().getValues();
-  var out = [];
-  for (var r = 1; r < data.length; r++) {
-    var login = String(data[r][hm.map.login] || "").trim();
-    if (!login) continue;
-    out.push({
-      login: login,
-      nome: String(data[r][hm.map.nome] || ""),
-      perfil: String(data[r][hm.map.perfil] || ""),
-      escritorio: String(data[r][hm.map.escritorio] || ""),
-      ativo: String(data[r][hm.map.ativo] || "sim"),
-      email: String(data[r][hm.map.email] || ""),
-      auth_user_id: String(data[r][hm.map.auth_user_id] || data[r][hm.map.id] || ""),
-      id: String(data[r][hm.map.id] || "")
-    });
-  }
+function hashSenha(s) {
+  var bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(s || ""), Utilities.Charset.UTF_8);
+  var out = "";
+  for (var i = 0; i < bytes.length; i++) out += ("0" + ((bytes[i] & 0xFF).toString(16))).slice(-2);
   return out;
 }
 
-function authLogin_(loginOrEmail, senha) {
-  var sh = getUsersSheet_();
-  var hm = headerMap_(sh);
-  var data = sh.getDataRange().getValues();
-  var key = String(loginOrEmail || "").trim().toLowerCase();
-  var hash = sha256_(senha);
-  for (var r = 1; r < data.length; r++) {
-    var login = String(data[r][hm.map.login] || "").trim().toLowerCase();
-    var email = String(data[r][hm.map.email] || "").trim().toLowerCase();
-    var ativo = String(data[r][hm.map.ativo] || "sim").toLowerCase();
-    if (ativo === "nao" || ativo === "false" || ativo === "0") continue;
-    if (login === key || email === key) {
-      var stored = String(data[r][hm.map.senha] || "").trim().toLowerCase();
-      if (stored !== hash) return { ok: false, error: "senha inválida" };
-      return {
-        ok: true,
-        user: {
-          login: login,
-          nome: String(data[r][hm.map.nome] || ""),
-          perfil: normPerfil_(data[r][hm.map.perfil]),
-          escritorio: String(data[r][hm.map.escritorio] || ""),
-          email: email,
-          auth_user_id: String(data[r][hm.map.auth_user_id] || data[r][hm.map.id] || ""),
-          id: String(data[r][hm.map.id] || "")
-        }
-      };
-    }
-  }
-  return { ok: false, error: "usuário não encontrado" };
+var ACCESS = { assistente: 10, atendente: 10, responsavel: 10, supervisor: 20, superadmin: 30 };
+
+function roleAccess(perfil) {
+  var p = norm(String(perfil || "assistente"));
+  if (ACCESS[p] !== undefined) return ACCESS[p];
+  for (var k in ACCESS) if (norm(k) === p) return ACCESS[k];
+  return 10;
 }
 
-function norm(s) {
-  return String(s || "")
-    .replace(/\s+/g, "")
-    .replace(/_/g, "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
+function out(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
 
 function doGet() {
-  return out_({ ok: true, app: "lexis-db-supabase-sheet", ts: new Date().toISOString() });
+  return out({ ok: true, app: "lexis-gabinete-sync", v: "6.2", ts: new Date().toISOString() });
+}
+
+function onOpen() {
+  var ui = SpreadsheetApp.getUi();
+  if (!ui) return;
+  ui.createMenu("Léxis")
+    .addItem("Criar usuário (login/senha)", "criarUsuarioUI")
+    .addItem("Listar usuários", "listarUsuariosUI")
+    .addToUi();
+}
+
+function criarUsuarioUI() {
+  var ui = SpreadsheetApp.getUi();
+  var resp = ui.prompt("Criar usuário", "login (minúsculas, sem espaços)", ui.ButtonSet.OK_CANCEL);
+  if (resp.getSelectedButton() !== ui.Button.OK) return;
+  var login = norm(resp.getResponseText());
+  if (!login) return;
+  var r2 = ui.prompt("Criar usuário · " + login, "nome completo", ui.ButtonSet.OK_CANCEL);
+  if (r2.getSelectedButton() !== ui.Button.OK) return;
+  var r3 = ui.prompt("Criar usuário · " + login, "senha", ui.ButtonSet.OK_CANCEL);
+  if (r3.getSelectedButton() !== ui.Button.OK) return;
+  var r4 = ui.prompt("Criar usuário · " + login, "perfil (assistente / atendente / responsavel)", ui.ButtonSet.OK_CANCEL);
+  if (r4.getSelectedButton() !== ui.Button.OK) return;
+  criarUsuario(login, r2.getResponseText(), r3.getResponseText(), r4.getResponseText(), "");
+  ui.alert("Usuário criado: " + login);
+}
+
+function listarUsuariosUI() {
+  var ui = SpreadsheetApp.getUi();
+  var sh = usuariosSheet();
+  if (!sh) { ui.alert("Não achei a aba 'Usuarios'."); return; }
+  var vals = sh.getDataRange().getValues();
+  var txt = [];
+  for (var i = 1; i < vals.length; i++) {
+    var v = vals[i];
+    if (!String(v[0] || "").trim()) continue;
+    txt.push(String(v[0]) + " | " + v[1] + " | " + v[3] + " | " + v[4]);
+  }
+  ui.alert("Usuários:\n" + (txt.join("\n") || "(nenhum)"));
+}
+
+function criarUsuario(login, nome, senha, perfil, escritorio) {
+  var sh = usuariosSheet(true);
+  if (!sh) return { ok: false, error: "falta aba Usuarios" };
+  var lastCol = Math.max(1, sh.getLastColumn());
+  var headers = sh.getRange(1, 1, 1, lastCol).getValues()[0].map(function (h) { return norm(h); });
+  function col(aliases) {
+    for (var a = 0; a < aliases.length; a++)
+      for (var c = 0; c < headers.length; c++)
+        if (headers[c] === aliases[a]) return c;
+    return -1;
+  }
+  var cL = col(["login", "usuario"]);
+  var cN = col(["nome"]);
+  var cS = col(["senha"]);
+  var cP = col(["perfil", "perfilacesso"]);
+  var cE = col(["escritorio", "unidade"]);
+  var cA = col(["ativo"]);
+  if (cL < 0 || cN < 0 || cS < 0) return { ok: false, error: "Usuarios precisa de login | nome | senha" };
+  var data = sh.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (norm(data[i][cL]) === norm(login)) return { ok: false, error: "login ja existe" };
+  }
+  var row = [""];
+  if (cL >= 0) row[cL] = login;
+  if (cN >= 0) row[cN] = nome;
+  if (cS >= 0) row[cS] = hashSenha(senha);
+  if (cP >= 0) row[cP] = perfil;
+  if (cE >= 0) row[cE] = escritorio;
+  if (cA >= 0) row[cA] = "sim";
+  var r = sh.getLastRow() + 1;
+  sh.getRange(r, 1, 1, lastCol).setValues([row]);
+  return { ok: true };
+}
+
+function usuariosSheet(create) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName(USERS_SHEET);
+  if (!sh && create) {
+    sh = ss.insertSheet(USERS_SHEET);
+    sh.getRange(1, 1, 1, 6).setValues([["login", "nome", "senha", "perfil", "escritorio", "ativo"]]);
+  }
+  return sh;
+}
+
+function getSheet() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  return ss.getSheetByName(SHEET_NAME) || ss.getSheets()[0];
 }
 
 function doPost(e) {
   try {
-    var body = JSON.parse((e.postData && e.postData.contents) || "{}");
-    if (!body || body.token !== TOKEN) return out_({ ok: false, error: "token invalido" });
-    if (body.ping) return out_({ ok: true, pong: true });
+    var body = JSON.parse(e.postData.contents || "{}");
+    if (!body || body.token !== TOKEN) return out({ ok: false, error: "token invalido" });
+    var action = String(body.action || "");
+    if (action === "ping") return out({ ok: true, pong: true, v: "6.2" });
 
-    var action = String(body.action || body.op || "").toLowerCase();
-
-    // —— USUARIOS ——
-    if (action === "ensure_schema") {
-      ensureSheets();
-      return out_({ ok: true, sheets: [USERS_SHEET, PROC_SHEET] });
+    if (action === "auth") {
+      return out(doAuth(body));
     }
-    if (action === "login") {
-      return out_(authLogin_(body.login || body.email, body.senha || body.password));
+    if (action === "auto") {
+      var vs = validSess(body);
+      if (vs.err) return out({ ok: false, error: vs.err });
+      return out({ ok: true, user: publicUser(vs.us) });
     }
-    if (action === "list_users") {
-      return out_({ ok: true, users: listUsersPublic_() });
+    if (action === "list") {
+      var vs2 = validSess(body);
+      if (vs2.err) return out({ ok: false, error: vs2.err });
+      return out(readAll(vs2.us));
     }
-    if (action === "create_user") {
-      var r = criarUsuario(body.login, body.nome, body.senha || body.password, body.perfil, body.escritorio, body.email);
-      return out_(r);
+    if (action === "write") {
+      var vs3 = validSess(body);
+      if (vs3.err) return out({ ok: false, error: vs3.err });
+      return out(writeRows(body.rows || [], vs3.us));
     }
-    if (action === "set_ativo") {
-      return out_(setUserAtivo_(body.login, body.ativo));
+    if (action === "users") {
+      var vs4 = validSess(body);
+      if (vs4.err) return out({ ok: false, error: vs4.err });
+      if (roleAccess(vs4.us.perfil) < 20) return out({ ok: false, error: "sem permissao (supervisor+)" });
+      return out(listUsers());
     }
-    if (action === "set_perfil") {
-      return out_(setUserPerfil_(body.login, body.perfil));
+    if (action === "user_create") {
+      var vs5 = validSess(body);
+      if (vs5.err) return out({ ok: false, error: vs5.err });
+      var ca = roleAccess(vs5.us.perfil);
+      if (ca < 20) return out({ ok: false, error: "sem permissao (supervisor+)" });
+      var targetA = roleAccess(body.perfil);
+      if (targetA > ca) return out({ ok: false, error: "voce nao pode criar perfil maior que o seu" });
+      return out(criarUsuarioServer(body, ca));
     }
-
-    // —— PROCESSOS (compat sync 2 vias) ——
-    if (action === "upsert_processos" || body.rows) {
-      return out_(upsertProcessos_(body.rows || []));
+    if (action === "user_set") {
+      var vs6 = validSess(body);
+      if (vs6.err) return out({ ok: false, error: vs6.err });
+      var ca2 = roleAccess(vs6.us.perfil);
+      if (ca2 < 20) return out({ ok: false, error: "sem permissao (supervisor+)" });
+      return out(setUsuarioServer(body, vs6.us.u, ca2));
     }
-
-    return out_({ ok: false, error: "action desconhecida: " + action });
+    if (action === "hash") { // utilitário: gera hash (use só por você)
+      return out({ ok: true, hash: hashSenha(body.senha) });
+    }
+    return out({ ok: false, error: "acao desconhecida: " + action });
   } catch (err) {
-    return out_({ ok: false, error: String(err.message || err) });
+    return out({ ok: false, error: String(err).slice(0, 300) });
   }
 }
 
-function setUserAtivo_(login, ativo) {
-  login = String(login || "").trim().toLowerCase();
-  var sh = getUsersSheet_();
-  var hm = headerMap_(sh);
-  var data = sh.getDataRange().getValues();
-  for (var r = 1; r < data.length; r++) {
-    if (String(data[r][hm.map.login] || "").trim().toLowerCase() === login) {
-      sh.getRange(r + 1, hm.map.ativo + 1).setValue(ativo ? "sim" : "nao");
-      return { ok: true, login: login, ativo: !!ativo };
-    }
-  }
-  return { ok: false, error: "não encontrado" };
+function publicUser(us) {
+  return { usuario: us.u, nome: us.nome, perfil: us.perfil, escritorio: us.escritorio, access: roleAccess(us.perfil) };
 }
 
-function setUserPerfil_(login, perfil) {
-  login = String(login || "").trim().toLowerCase();
-  var sh = getUsersSheet_();
-  var hm = headerMap_(sh);
-  var data = sh.getDataRange().getValues();
-  for (var r = 1; r < data.length; r++) {
-    if (String(data[r][hm.map.login] || "").trim().toLowerCase() === login) {
-      sh.getRange(r + 1, hm.map.perfil + 1).setValue(normPerfil_(perfil));
-      return { ok: true, login: login, perfil: normPerfil_(perfil) };
-    }
-  }
-  return { ok: false, error: "não encontrado" };
-}
-
-function upsertProcessos_(rows) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  ensureSheetWithHeaders_(ss, PROC_SHEET, PROC_HEADERS);
-  var sh = ss.getSheetByName(PROC_SHEET);
+function doAuth(body) {
+  var login = norm(body.usuario);
+  var pass = String(body.senha || "");
+  if (!login || !pass) return { ok: false, error: "informe usuario e senha" };
+  var sh = usuariosSheet();
+  if (!sh) return { ok: false, error: "falta a aba 'Usuarios' na planilha (login | nome | senha | perfil | escritorio | ativo)" };
   var lastCol = Math.max(1, sh.getLastColumn());
-  var headers = sh.getRange(HEADER_ROW, 1, 1, lastCol).getValues()[0].map(function (h) {
-    return String(h || "").trim();
-  });
+  var headers = sh.getRange(HEADER_ROW, 1, 1, lastCol).getValues()[0].map(function (h) { return norm(h); });
+  function col(aliases) {
+    for (var a = 0; a < aliases.length; a++)
+      for (var c = 0; c < headers.length; c++)
+        if (headers[c] === aliases[a]) return c;
+    return -1;
+  }
+  var cL = col(["login", "usuario"]);
+  var cEml = col(["email", "e-mail", "mail"]);
+  var cN = col(["nome"]);
+  var cS = col(["senha"]);
+  var cP = col(["perfil", "perfilacesso"]);
+  var cE = col(["escritorio", "unidade"]);
+  var cA = col(["ativo"]);
+  if (cL < 0 || cS < 0) return { ok: false, error: "Usuarios precisa das colunas login e senha" };
+  var data = sh.getDataRange().getValues();
+  var found = null;
+  var isEmailInput = String(body.usuario || "").indexOf("@") >= 0;
+  var rawEmailInput = String(body.usuario || "").trim().toLowerCase();
+  for (var i = HEADER_ROW; i < data.length; i++) {
+    var v = data[i];
+    var u = norm(v[cL]);
+    var ativo = norm(v[cA >= 0 ? cA : 0]);
+    var match = false;
+    if (u && u === login) {
+      match = true;
+    } else if (isEmailInput && cEml >= 0) {
+      var storedEmail = String(v[cEml] || "").trim().toLowerCase();
+      if (storedEmail && storedEmail === rawEmailInput) {
+        match = true;
+      }
+    }
+    if (match) {
+      if (cA >= 0 && (ativo === "nao" || ativo === "false" || ativo === "0" || ativo === "inativo")) {
+        return { ok: false, error: "usuario inativo" };
+      }
+      found = v; break;
+    }
+  }
+  if (!found) return { ok: false, error: "usuario ou senha invalidos" };
+  var stored = String(found[cS] || "");
+  if (hashSenha(pass) !== stored) return { ok: false, error: "usuario ou senha invalidos" };
+  var token = Utilities.getUuid() + Utilities.getUuid();
+  var sessLogin = (cEml >= 0 && isEmailInput) ? String(found[cEml] || "").trim().toLowerCase() : login;
+  var sess = {
+    u: sessLogin,
+    nome: String(found[cN >= 0 ? cN : 0] || login),
+    perfil: String(found[cP >= 0 ? cP : 0] || "assistente"),
+    escritorio: String(found[cE >= 0 ? cE : 0] || ""),
+    exp: Date.now() + SESS_DURATION_MS
+  };
+  PropertiesService.getScriptProperties().setProperty(SESS_PREFIX + token, JSON.stringify(sess));
+  pruneSessions();
+  return { ok: true, token: token, user: publicUser(sess) };
+}
+
+function pruneSessions() {
+  var props = PropertiesService.getScriptProperties();
+  var keys = props.getKeys();
+  var now = Date.now();
+  for (var i = 0; i < keys.length; i++) {
+    if (keys[i].indexOf(SESS_PREFIX) === 0) {
+      try {
+        var s = JSON.parse(props.getProperty(keys[i]));
+        if (s && s.exp && s.exp < now) props.deleteProperty(keys[i]);
+      } catch (_) {}
+    }
+  }
+}
+
+function getSess(token) {
+  if (!token) return null;
+  try {
+    var props = PropertiesService.getScriptProperties();
+    var raw = props.getProperty(SESS_PREFIX + String(token));
+    if (!raw) return null;
+    var s = JSON.parse(raw);
+    if (s && typeof s.exp === "number" && s.exp > Date.now()) return s;
+    props.deleteProperty(SESS_PREFIX + String(token));
+    return null;
+  } catch (_) { return null; }
+}
+
+function touchSess(token) {
+  try {
+    var props = PropertiesService.getScriptProperties();
+    var raw = props.getProperty(SESS_PREFIX + String(token));
+    if (!raw) return;
+    var s = JSON.parse(raw);
+    s.exp = Date.now() + SESS_DURATION_MS;
+    props.setProperty(SESS_PREFIX + String(token), JSON.stringify(s));
+  } catch (_) {}
+}
+
+function isAtivo(login) {
+  var sh = usuariosSheet();
+  if (!sh) return false;
+  var lastCol = Math.max(1, sh.getLastColumn());
+  var headers = sh.getRange(HEADER_ROW, 1, 1, lastCol).getValues()[0].map(function (h) { return norm(h); });
+  var cL = -1, cA = -1;
+  for (var i = 0; i < headers.length; i++) {
+    if (headers[i] === "login" || headers[i] === "usuario") cL = i;
+    if (headers[i] === "ativo") cA = i;
+  }
+  if (cL < 0) return false;
+  var data = sh.getDataRange().getValues();
+  for (var r = HEADER_ROW; r < data.length; r++) {
+    if (norm(data[r][cL]) === norm(login)) {
+      if (cA < 0) return true;
+      var v = norm(data[r][cA]);
+      return !(v === "nao" || v === "false" || v === "0" || v === "inativo");
+    }
+  }
+  return false;
+}
+
+function validSess(body) {
+  var us = getSess(body.sess);
+  if (!us) return { err: "sessao invalida ou expirada" };
+  if (!isAtivo(us.u)) {
+    try { PropertiesService.getScriptProperties().deleteProperty(SESS_PREFIX + String(body.sess)); } catch (_) {}
+    return { err: "usuario banido" };
+  }
+  touchSess(body.sess);
+  return { us: us };
+}
+
+function listUsers() {
+  var sh = usuariosSheet();
+  if (!sh) return { ok: false, error: "falta aba Usuarios" };
+  var lastCol = Math.max(1, sh.getLastColumn());
+  var headers = sh.getRange(HEADER_ROW, 1, 1, lastCol).getValues()[0].map(function (h) { return norm(h); });
+  function col(aliases) {
+    for (var a = 0; a < aliases.length; a++)
+      for (var c = 0; c < headers.length; c++)
+        if (headers[c] === aliases[a]) return c;
+    return -1;
+  }
+  var cL = col(["login", "usuario"]), cN = col(["nome"]), cP = col(["perfil", "perfilacesso"]),
+      cE = col(["escritorio", "unidade"]), cA = col(["ativo"]);
+  var data = sh.getDataRange().getValues();
+  var users = [];
+  for (var i = HEADER_ROW; i < data.length; i++) {
+    var v = data[i];
+    var login = String(v[cL] || "").trim();
+    if (!login) continue;
+    users.push({
+      login: login,
+      nome: String(cN >= 0 ? v[cN] || "" : ""),
+      perfil: String(cP >= 0 ? v[cP] || "" : "assistente"),
+      escritorio: String(cE >= 0 ? v[cE] || "" : ""),
+      ativo: (cA < 0) ? "sim" : String(v[cA] || "sim").trim()
+    });
+  }
+  users.sort(function (a, b) { return String(a.login).localeCompare(String(b.login)); });
+  return { ok: true, users: users };
+}
+
+function criarUsuarioServer(body, callAccess) {
+  var login = norm(body.login);
+  var senha = String(body.senha || "");
+  var nome = String(body.nome || login);
+  var perfil = String(body.perfil || "assistente");
+  if (!login) return { ok: false, error: "login vazio" };
+  if (senha.length < 4) return { ok: false, error: "senha precisa de 4+ caracteres" };
+  if (roleAccess(perfil) > callAccess) return { ok: false, error: "perfil acima da sua permissao" };
+  var existe = readUserRow(login);
+  if (existe) return { ok: false, error: "login ja existe" };
+  var sh = usuariosSheet(true);
+  if (!sh) return { ok: false, error: "falta aba Usuarios" };
+  var lastCol = Math.max(1, sh.getLastColumn());
+  var headers = sh.getRange(HEADER_ROW, 1, 1, lastCol).getValues()[0].map(function (h) { return norm(h); });
+  function col(aliases) {
+    for (var a = 0; a < aliases.length; a++)
+      for (var c = 0; c < headers.length; c++)
+        if (headers[c] === aliases[a]) return c;
+    return -1;
+  }
+  var cL = col(["login", "usuario"]), cN = col(["nome"]), cS = col(["senha"]),
+      cP = col(["perfil", "perfilacesso"]), cE = col(["escritorio", "unidade"]), cA = col(["ativo"]);
+  if (cL < 0 || cS < 0) return { ok: false, error: "Usuarios precisa de login(senha)" };
+  var row = [];
+  for (var c = 0; c < lastCol; c++) row.push("");
+  if (cL >= 0) row[cL] = login;
+  if (cN >= 0) row[cN] = nome;
+  if (cS >= 0) row[cS] = hashSenha(senha);
+  if (cP >= 0) row[cP] = perfil;
+  if (cE >= 0) row[cE] = String(body.escritorio || "");
+  if (cA >= 0) row[cA] = "sim";
+  var r = sh.getLastRow() + 1;
+  sh.getRange(r, 1, 1, lastCol).setValues([row]);
+  return { ok: true, login: login, perfil: perfil };
+}
+
+function setUsuarioServer(body, callerLogin, callAccess) {
+  var login = norm(body.login);
+  if (!login) return { ok: false, error: "login vazio" };
+  var t = readUserRow(login);
+  if (!t) return { ok: false, error: "usuario nao encontrado" };
+  var sh = t.sh;
+  var lastCol = Math.max(1, sh.getLastColumn());
+  var headers = sh.getRange(HEADER_ROW, 1, 1, lastCol).getValues()[0].map(function (h) { return norm(h); });
+  function col(aliases) {
+    for (var a = 0; a < aliases.length; a++)
+      for (var c = 0; c < headers.length; c++)
+        if (headers[c] === aliases[a]) return c;
+    return -1;
+  }
+  var targetPerfil = "assistente";
+  var cP0 = col(["perfil", "perfilacesso"]);
+  if (cP0 >= 0) targetPerfil = String(t.data[cP0] || "assistente");
+  if (roleAccess(targetPerfil) > callAccess) return { ok: false, error: "esse usuario esta acima da sua permissao" };
+  var cA = col(["ativo"]);
+  var cN = col(["nome"]), cP = col(["perfil", "perfilacesso"]), cE = col(["escritorio", "unidade"]);
+  var ativo = String(body.ativo || "").trim().toLowerCase();
+  if (ativo === "nao" && login === callerLogin) return { ok: false, error: "voce nao pode banir a si mesmo" };
+  if (body.perfil && String(body.perfil).trim()) {
+    if (roleAccess(body.perfil) > callAccess) return { ok: false, error: "perfil acima da sua permissao" };
+    if (cP >= 0) sh.getRange(t.row, cP + 1).setValue(String(body.perfil).trim());
+  }
+  if (body.nome !== undefined && cN >= 0) sh.getRange(t.row, cN + 1).setValue(String(body.nome).trim());
+  if (body.escritorio !== undefined && cE >= 0) sh.getRange(t.row, cE + 1).setValue(String(body.escritorio).trim());
+  if (ativo === "sim" || ativo === "nao") {
+    if (cA < 0) return { ok: false, error: "Usuarios precisa da coluna ativo" };
+    sh.getRange(t.row, cA + 1).setValue(ativo === "sim" ? "sim" : "nao");
+  }
+  return { ok: true, login: login, ativo: ativo || "", perfil: body.perfil || targetPerfil };
+}
+
+function readAll(us) {
+  var sh = getSheet();
+  var lastCol = Math.max(1, sh.getLastColumn());
+  var headers = sh.getRange(HEADER_ROW, 1, 1, lastCol).getValues()[0].map(function (h) { return String(h || "").trim(); });
+  var data = sh.getDataRange().getValues();
+  var minhas = [];
+  var todas = [];
+  var u = norm(us.u);
+  var un = norm(us.nome);
+  var respIdx = -1;
+  var isAdmin = roleAccess(us.perfil) >= 20;
+  for (var c = 0; c < headers.length; c++) if (norm(headers[c]) === norm(OWNER_FIELD)) { respIdx = c; break; }
+  for (var i = HEADER_ROW + 1; i < data.length; i++) {
+    var line = data[i];
+    var has = false;
+    for (var q = 0; q < lastCol; q++) if (String(line[q] || "").trim() !== "") { has = true; break; }
+    if (!has) continue;
+    var cells = line.slice(0, lastCol);
+    var owner = (respIdx >= 0) ? String(line[respIdx] || "").trim() : "";
+    var ownerN = norm(owner);
+    todas.push(cells);
+    if (isAdmin || ownerN === "" || ownerN === u || ownerN === un) minhas.push(cells);
+  }
+  return { ok: true, headers: headers, minhas: minhas, todas: todas, user: publicUser(us), v: "6.2" };
+}
+
+function writeRows(rowsIn, us) {
+  var sh = getSheet();
+  var lastCol = Math.max(1, sh.getLastColumn());
+  var headers = sh.getRange(HEADER_ROW, 1, 1, lastCol).getValues()[0].map(function (h) { return String(h || "").trim(); });
   var keyIdx = -1;
   for (var ci = 0; ci < headers.length; ci++) {
-    if (/protocolo|cnj|processo|numero/.test(norm(headers[ci]))) {
-      keyIdx = ci;
-      break;
-    }
+    var hn = norm(headers[ci]);
+    if (/protocolo|cnj|processo|numero/.test(hn)) { keyIdx = ci; break; }
   }
-  if (keyIdx < 0) return { ok: false, error: "coluna Protocolo não encontrada" };
-
+  if (keyIdx < 0) return { ok: false, error: "coluna-chave (Protocolo/CNJ) nao encontrada" };
+  var respIdx = -1;
+  for (var c2 = 0; c2 < headers.length; c2++) if (norm(headers[c2]) === norm(OWNER_FIELD)) { respIdx = c2; break; }
   var data = sh.getDataRange().getValues();
-  var index = {};
-  for (var r = 1; r < data.length; r++) {
-    var k = String(data[r][keyIdx] || "").replace(/\D/g, "");
-    if (k) index[k] = r + 1;
+  var map = {};
+  for (var i = HEADER_ROW + 1; i < data.length; i++) {
+    var k = String(data[i][keyIdx] || "").replace(/\D/g, "");
+    if (k) map[k] = i + 1;
   }
-
-  var updated = 0, inserted = 0;
-  rows.forEach(function (rowObj) {
-    if (!rowObj || typeof rowObj !== "object") return;
-    var proto = String(rowObj.Protocolo || rowObj.protocolo || rowObj.protocolo_ref || "").trim();
-    var digits = proto.replace(/\D/g, "");
-    if (!digits) return;
-    var line = headers.map(function (h) {
-      var nk = norm(h);
-      for (var key in rowObj) {
-        if (norm(key) === nk) return rowObj[key];
+  var u = norm(us.u);
+  var un = norm(us.nome);
+  var updated = 0, added = 0; var rejected = [];
+  var isAdmin = roleAccess(us.perfil) >= 20;
+  for (var r = 0; r < rowsIn.length; r++) {
+    var rec = rowsIn[r] || {};
+    var key = String(rec[KEY_COL] || rec.protocolo || "").replace(/\D/g, "");
+    if (!key) { rejected.push({ protocolo: "", motivo: "sem chave" }); continue; }
+    var row = map[key] || null;
+    if (!row) {
+      row = sh.getLastRow() + 1;
+      var blank = [];
+      for (var bc = 0; bc < lastCol; bc++) blank.push("");
+      sh.getRange(row, 1, 1, lastCol).setValues([blank]);
+      map[key] = row;
+      if (respIdx >= 0) { // novo caso vira do criador
+        sh.getRange(row, respIdx + 1).setValue(us.u);
       }
-      if (/protocolo/.test(nk)) return proto;
-      return "";
-    });
-    if (index[digits]) {
-      sh.getRange(index[digits], 1, index[digits], headers.length).setValues([line]);
-      updated++;
+      added++;
     } else {
-      sh.appendRow(line);
-      inserted++;
+      var ownerNow = (respIdx >= 0) ? norm(String(data[row - 1][respIdx] || "")) : "";
+      if (!isAdmin && ownerNow !== "" && ownerNow !== u && ownerNow !== un) {
+        rejected.push({ protocolo: key, motivo: "processo de outro responsavel" });
+        continue;
+      }
     }
-  });
-  return { ok: true, updated: updated, inserted: inserted };
-}
-
-function out_(obj) {
-  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+    sh.getRange(row, keyIdx + 1).setValue(rec[KEY_COL] || key);
+    updated++;
+    for (var field in rec) {
+      if (norm(field) === norm(KEY_COL)) continue;
+      if (rec[field] === undefined || rec[field] === null) continue;
+      if (String(rec[field]) === "") continue;
+      var fNorm = norm(field);
+      for (var c = 0; c < headers.length; c++) {
+        if (norm(headers[c]) === fNorm) {
+          sh.getRange(row, c + 1).setValue(String(rec[field]));
+          break;
+        }
+      }
+    }
+  }
+  return { ok: true, updated: updated, added: added, rejected: rejected };
 }

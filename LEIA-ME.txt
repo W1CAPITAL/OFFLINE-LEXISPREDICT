@@ -1,0 +1,33 @@
+PROBLEMA
+========
+O app v6.2 manda:  { token, action: "ping" }
+O script que você colou (LEXIS-DB) só aceita:  { token, ping: true }
+
+Por isso o teste falha com "HTTP 200 inesperado" mesmo com webhook no ar.
+
+SOLUÇÃO
+=======
+1) FECHE o Lexis Gabinete.exe
+
+2) Google Planilha → Extensões → Apps Script
+   - APAGUE todo o código atual
+   - COLE o arquivo LEXIS-SYNC-AppsScript.gs DESTE pacote (é o oficial v6.2)
+   - TOKEN no topo = w1-fase1-2026 (igual ao app)
+
+3) Implantar → Gerenciar implantações → LÁPIS
+   - Versão: NOVA VERSÃO   ← obrigatório
+   - Quem pode acessar: Qualquer pessoa
+   - Implantar
+
+4) Na planilha, abas obrigatórias:
+   - Processos  (com coluna Protocolo e Responsavel)
+   - Usuarios   (login | nome | senha | perfil | escritorio | ativo)
+   Menu do editor: Léxis → Criar usuário (superadmin)
+
+5) Abra o EXE → Configurações:
+   Webhook = .../exec
+   Token   = w1-fase1-2026
+   SALVAR → Testar webhook → deve dizer "Webhook OK"
+
+NÃO use o LEXIS-DB-AppsScript.gs com o app v6.2.
+Use só o LEXIS-SYNC-AppsScript.gs deste pacote.
