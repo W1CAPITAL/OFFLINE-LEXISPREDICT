@@ -1,0 +1,45 @@
+ONDE COLAR NO SEU WINDOWS (pela foto da pasta)
+==============================================
+
+Sua pasta:
+  ...\_extraido\Lexis-Offline-Edition-Windows\
+
+O EXE NÃO lê a pasta "desktop\".
+O EXE lê só:
+
+  Lexis-Offline-Edition-Windows\resources\app\app.js
+  Lexis-Offline-Edition-Windows\resources\app\main.js
+  Lexis-Offline-Edition-Windows\resources\app\offline.html
+  Lexis-Offline-Edition-Windows\resources\app\preload.js
+
+PASSO RÁPIDO
+------------
+1) FECHE o Lexis Gabinete.exe
+
+2) Copie o arquivo app.js DESTE pacote para:
+
+   ...\Lexis-Offline-Edition-Windows\resources\app\app.js
+
+   (substitua o app.js que já está lá)
+
+   OU dê duplo-clique em APLICAR-AQUI.bat
+   (o BAT precisa estar DENTRO de Lexis-Offline-Edition-Windows)
+
+3) Apps Script (Google):
+   - Cole LEXIS-DB-AppsScript.gs
+   - Implantar → Gerenciar → lápis → NOVA VERSÃO
+   - Acesso: Qualquer pessoa
+   - URL /exec
+
+4) Planilha Google:
+   - Compartilhar → Qualquer pessoa com o link → Leitor
+
+5) Abra o EXE → Configurações:
+   URL planilha  = link docs.google.com/spreadsheets/...
+   URL webhook   = https://script.google.com/macros/s/AKfycbx.../exec
+   Token         = w1-fase1-2026
+   → botão SALVAR
+   → Testar webhook
+
+NÃO adianta só colar o texto do script no campo do app.
+NÃO adianta só colocar arquivos em desktop\ sem ir para resources\app\.
