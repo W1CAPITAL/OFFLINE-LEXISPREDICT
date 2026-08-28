@@ -42,40 +42,50 @@ function dbPath() {
   return userDataPath("lexis-offline-db.json");
 }
 
+function isAppsScriptHost(u) {
+  const s = String(u || "").toLowerCase();
+  return s.indexOf("script.google.com") > -1 || s.indexOf("script.googleusercontent.com") > -1;
+}
+
 function fetchBuffer(url, opts, maxRedirects) {
-  if (maxRedirects === undefined) maxRedirects = 6;
+  if (maxRedirects === undefined) maxRedirects = 10;
   opts = opts || {};
   return new Promise((resolve, reject) => {
-    const lib = url.startsWith("https") ? https : http;
-    const u = new URL(url);
+    const lib = String(url).startsWith("https") ? https : http;
+    let u;
+    try { u = new URL(url); } catch (e) { return reject(new Error("URL inválida")); }
     const hdrs = Object.assign({}, opts.headers || {});
-    if (opts.body && hdrs["Content-Length"] === undefined) {
+    const method = opts.method || "GET";
+    if (opts.body != null && hdrs["Content-Length"] === undefined) {
       hdrs["Content-Length"] = Buffer.byteLength(String(opts.body));
     }
-    const reqOpts = {
+    const req = lib.request({
       hostname: u.hostname,
-      port: u.port || (url.startsWith("https") ? 443 : 80),
+      port: u.port || (String(url).startsWith("https") ? 443 : 80),
       path: u.pathname + u.search,
-      method: opts.method || "GET",
+      method,
       headers: hdrs,
       timeout: opts.timeout || 60000,
-    };
-    const req = lib.request(reqOpts, (res) => {
-      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location && maxRedirects > 0) {
+    }, (res) => {
+      const code = res.statusCode || 0;
+      if (code >= 300 && code < 400 && res.headers.location && maxRedirects > 0) {
         const next = res.headers.location.startsWith("http")
           ? res.headers.location
           : new URL(res.headers.location, url).href;
-        if (String(next).toLowerCase().indexOf("accounts.google") > -1) {
-          const c2 = [];
-          res.on("data", (cd) => c2.push(cd));
-          res.on("end", () => resolve({ status: res.statusCode, body: Buffer.concat(c2), headers: res.headers, authRedirect: true }));
-          return;
-        }
+        const nextL = String(next).toLowerCase();
+        // drain
         res.resume();
-        if ((opts.method === "POST" || opts.method === "PUT") &&
-            (res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 303)) {
+        if (nextL.indexOf("accounts.google") > -1) {
+          return resolve({ status: code, body: Buffer.from(""), headers: res.headers, authRedirect: true });
+        }
+        // CRÍTICO: Apps Script 302 → usercontent: NUNCA converter POST em GET
+        if (isAppsScriptHost(url) || isAppsScriptHost(next)) {
+          return resolve(fetchBuffer(next, opts, maxRedirects - 1));
+        }
+        if ((method === "POST" || method === "PUT") && (code === 301 || code === 302 || code === 303)) {
           const fol = Object.assign({}, opts, { method: "GET", body: null, headers: Object.assign({}, opts.headers || {}) });
           delete fol.headers["Content-Length"];
+          delete fol.headers["content-length"];
           return resolve(fetchBuffer(next, fol, maxRedirects - 1));
         }
         return resolve(fetchBuffer(next, opts, maxRedirects - 1));
@@ -87,20 +97,19 @@ function fetchBuffer(url, opts, maxRedirects) {
         const enc = String(res.headers["content-encoding"] || "").toLowerCase();
         if (enc.indexOf("gzip") >= 0 || enc.indexOf("deflate") >= 0) {
           zlib.gunzip(buf, (err, out) => {
-            resolve({ status: res.statusCode, body: err ? buf : out, headers: res.headers });
+            resolve({ status: code, body: err ? buf : out, headers: res.headers });
           });
         } else {
-          resolve({ status: res.statusCode, body: buf, headers: res.headers });
+          resolve({ status: code, body: buf, headers: res.headers });
         }
       });
     });
     req.on("error", reject);
     req.on("timeout", () => { req.destroy(); reject(new Error("Timeout")); });
-    if (opts.body) req.write(opts.body);
+    if (opts.body != null) req.write(String(opts.body));
     req.end();
   });
 }
-
 
 const BUILTIN_MINIMAX = {
   minimaxApiKey: "",
@@ -181,29 +190,50 @@ ipcMain.handle("lexis-fetch-text", async (_e, url) => {
 ipcMain.handle("lexis-fetch-json", async (_e, url, opts) => {
   try {
     let finalUrl = String(url || "").trim();
-    if (finalUrl && /^https:\/\/script\.google\.com\/macros\/s\//.test(finalUrl)) {
-      finalUrl = finalUrl.replace(/\/dev(\b|$)/, "/exec");
+    if (/docs\.google\.com\/spreadsheets/i.test(finalUrl) || /drive\.google\.com/i.test(finalUrl)) {
+      return {
+        ok: false, http: 405, json: null,
+        error: "Campo webhook está com link da PLANILHA. Use a URL do Apps Script que termina em /exec",
+        raw: "",
+      };
     }
+    if (/^https:\/\/script\.google\.com\/macros\/s\//i.test(finalUrl)) {
+      finalUrl = finalUrl.replace(/\/dev(\b|$)/, "/exec").replace(/\/exec\/?(\?|$)/, "/exec$1");
+    } else if (finalUrl && !/script\.google\.(com|usercontent\.com)/i.test(finalUrl)) {
+      return {
+        ok: false, http: 0, json: null,
+        error: "Webhook deve ser https://script.google.com/macros/s/.../exec",
+        raw: finalUrl.slice(0, 100),
+      };
+    }
+    const method = (opts && opts.method) || "GET";
     const r = await fetchBuffer(finalUrl, {
-      method: (opts && opts.method) || "GET",
+      method,
       headers: Object.assign(
-        { "User-Agent": "Mozilla/5.0 LexisOffline/6.0", Accept: "application/json" },
+        { "User-Agent": "LexisOffline/6.2", Accept: "application/json,text/plain,*/*" },
         (opts && opts.headers) || {}
       ),
-      body: opts && opts.body,
+      body: opts && opts.body != null ? opts.body : undefined,
       timeout: (opts && opts.timeout) || 45000,
     });
-    const text = r.body.toString("utf8");
+    const text = r.body ? r.body.toString("utf8") : "";
     let json = null;
     try { json = JSON.parse(text); } catch (_) {}
     if (r.authRedirect) {
-      return { ok: false, http: r.status, auth: true, json: null, raw: "Google redirecionou para login. Verifique se a implantação web está com acesso 'Qualquer pessoa' (sem 'com o link')." };
+      return { ok: false, http: r.status, auth: true, json: null, raw: "Login Google — implantação com acesso Qualquer pessoa." };
     }
-    return { ok: r.status >= 200 && r.status < 300 && !!json, http: r.status, text, json, raw: text.slice(0, 500) };
+    return {
+      ok: r.status >= 200 && r.status < 300 && !!json,
+      http: r.status,
+      text,
+      json,
+      raw: text.slice(0, 500),
+    };
   } catch (e) {
     return { ok: false, http: 0, error: e.message || String(e), raw: "" };
   }
 });
+
 
 ipcMain.handle("lexis-datajud", async (_e, cnj) => {
   try {

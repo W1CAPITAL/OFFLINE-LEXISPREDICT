@@ -59,8 +59,16 @@ function out(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
 
-function doGet() {
-  return out({ ok: true, app: "lexis-gabinete-sync", v: "6.2", ts: new Date().toISOString() });
+function doGet(e) {
+  try {
+    var p = (e && e.parameter) || {};
+    if (String(p.action || "") === "ping" || p.ping === "1" || p.ping === "true") {
+      if (p.token && String(p.token) !== String(TOKEN)) return out({ ok: false, error: "token invalido" });
+      return out({ ok: true, pong: true, v: "6.3", via: "GET" });
+    }
+  } catch (err) {}
+  return out({ ok: true, app: "lexis-gabinete-sync", v: "6.3", ts: new Date().toISOString(), hint: "use POST action=ping ou GET ?action=ping&token=" });
+});
 }
 
 function onOpen() {
@@ -156,7 +164,7 @@ function doPost(e) {
     var body = JSON.parse(e.postData.contents || "{}");
     if (!body || body.token !== TOKEN) return out({ ok: false, error: "token invalido" });
     var action = String(body.action || "");
-    if (action === "ping") return out({ ok: true, pong: true, v: "6.2" });
+    if (action === "ping" || body.ping === true) return out({ ok: true, pong: true, v: "6.3" });
 
     if (action === "auth") {
       return out(doAuth(body));

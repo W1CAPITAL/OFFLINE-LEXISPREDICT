@@ -751,29 +751,76 @@
   function testWebhook() {
     if (!$("cfgStatus")) return;
     var st = $("cfgStatus");
-    st.textContent = "Testando…";
-    if (!cfg.webhook) { st.className = "hint err-msg"; st.textContent = "Falta a URL do webhook."; return; }
-    postRows({ token: cfg.token || "?", action: "ping" }).then(function (r) {
-      if (r && r.ok && r.json && r.json.pong) {
+    try {
+      if ($("cfgWebhook")) cfg.webhook = $("cfgWebhook").value.trim();
+      if ($("cfgToken")) cfg.token = $("cfgToken").value.trim();
+      if ($("cfgOper")) cfg.oper = $("cfgOper").value.trim();
+    } catch (e1) {}
+    if (!cfg.token) cfg.token = "w1-fase1-2026";
+    st.className = "hint";
+    st.textContent = "Testando webhook…";
+    var wh = String(cfg.webhook || "").trim().replace(/\/dev(\b|$)/, "/exec");
+    if (!wh) {
+      st.className = "hint err-msg";
+      st.textContent = "Cole a URL /exec do Apps Script (não o link da planilha).";
+      return;
+    }
+    if (/docs\.google\.com\/spreadsheets/i.test(wh)) {
+      st.className = "hint err-msg";
+      st.textContent = "Isso é link da PLANILHA. Webhook = script.google.com/.../exec";
+      return;
+    }
+    cfg.webhook = wh.replace(/\/exec\/?\s*$/, "/exec");
+    try { localStorage.setItem("lexis_g_webhook", cfg.webhook); localStorage.setItem("lexis_g_token", cfg.token); } catch (e2) {}
+    if (!window.lexisOffline || !window.lexisOffline.fetchJson) {
+      st.className = "hint err-msg";
+      st.textContent = "Sem IPC Electron (reabra o app).";
+      return;
+    }
+    // 1) GET ?action=ping — não depende de redirect POST
+    var getUrl = cfg.webhook + (cfg.webhook.indexOf("?") >= 0 ? "&" : "?") +
+      "action=ping&token=" + encodeURIComponent(cfg.token);
+    window.lexisOffline.fetchJson(getUrl, { method: "GET" }).then(function (r) {
+      if (r && r.json && r.json.pong === true) {
         st.className = "hint ok-msg";
-        st.textContent = "Webhook OK — a planilha está pronta para receber edições.";
-        toast("Webhook conectado", "ok-msg");
-      } else {
-        st.className = "hint err-msg";
-        var detail = (r && r.json && r.json.error) || (r && r.error) || "";
-        if (detail) {
-          st.textContent = "Webhook falhou: " + detail + (r && r.http ? " (HTTP " + r.http + ")" : "") + ". Confira o acesso 'Qualquer pessoa' e o token.";
-        } else {
-          st.textContent = "Webhook respondeu algo inesperado" + (r && r.http ? " (HTTP " + r.http + ")" : "") + ". Pode ser a aba/página de login do Google.";
-        }
+        st.textContent = "Webhook OK ✓ (GET ping) — escrita via POST no sync.";
+        if (typeof toast === "function") toast("Webhook conectado", "ok-msg");
+        return null;
       }
+      // 2) POST action=ping
+      return window.lexisOffline.fetchJson(cfg.webhook, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: cfg.token, action: "ping", ping: true })
+      });
+    }).then(function (r) {
+      if (r === null || r === undefined) return;
+      if (r && r.json && r.json.pong === true) {
+        st.className = "hint ok-msg";
+        st.textContent = "Webhook OK ✓ (POST ping)";
+        if (typeof toast === "function") toast("Webhook conectado", "ok-msg");
+        return;
+      }
+      // 3) Resposta doGet sem pong = script no ar, mas versão antiga OU POST virou GET
+      if (r && r.json && r.json.ok === true && r.json.app) {
+        st.className = "hint err-msg";
+        st.textContent = "Script no ar, mas sem pong. No Apps Script: cole LEXIS-SYNC atualizado, Implantar → Nova versão. Depois teste de novo.";
+        return;
+      }
+      if (r && r.json && r.json.error) {
+        st.className = "hint err-msg";
+        st.textContent = "Script: " + r.json.error;
+        return;
+      }
+      st.className = "hint err-msg";
+      var raw = String((r && (r.raw || r.text)) || "").slice(0, 100);
+      st.textContent = "HTTP " + (r && r.http) + " — " + raw;
     }).catch(function (e) {
       st.className = "hint err-msg";
-      st.textContent = "Falha: " + (e && e.message ? e.message : "sem conexão");
+      st.textContent = "Rede: " + (e && e.message ? e.message : e);
     });
   }
 
-  /* ============================ renderizadores ============================ */
   function kpiCard(l, v, cls, s) {
     return '<div class="kpi ' + (cls || "") + '"><div class="l">' + l + '</div><div class="v">' + v + '</div>' + (s ? '<div class="s">' + s + "</div>" : "") + "</div>";
   }
