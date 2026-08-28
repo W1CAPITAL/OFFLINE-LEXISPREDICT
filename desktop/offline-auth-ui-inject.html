@@ -1,0 +1,46 @@
+<!-- Cole antes de </body> em offline.html -->
+<div id="authGate" style="display:none;position:fixed;inset:0;z-index:9999;background:#0B1220;color:#fafafa;align-items:center;justify-content:center;flex-direction:column;gap:12px;padding:24px">
+  <div style="width:min(400px,100%);background:#111827;border:1px solid #334155;border-radius:16px;padding:24px;box-shadow:0 20px 50px rgba(0,0,0,.5)">
+    <h2 style="margin:0 0 4px;font-size:1.15rem">Lexis Gabinete Offline</h2>
+    <p style="margin:0 0 16px;color:#94a3b8;font-size:.85rem">Login na planilha / base local (estilo Supabase)</p>
+    <label style="font-size:11px;color:#94a3b8">Login ou e-mail</label>
+    <input id="authLogin" style="width:100%;margin:4px 0 10px;padding:10px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#fff"/>
+    <label style="font-size:11px;color:#94a3b8">Senha</label>
+    <input id="authSenha" type="password" style="width:100%;margin:4px 0 10px;padding:10px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#fff"/>
+    <label style="font-size:11px;color:#94a3b8">Webhook planilha (opcional)</label>
+    <input id="authWebhook" placeholder="https://script.google.com/.../exec" style="width:100%;margin:4px 0 10px;padding:10px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#fff;font-size:12px"/>
+    <button type="button" id="authBtn" style="width:100%;padding:12px;border:0;border-radius:10px;background:#059669;color:#fff;font-weight:800;cursor:pointer">Entrar</button>
+    <button type="button" id="authBootstrap" style="width:100%;margin-top:8px;padding:10px;border:1px solid #475569;border-radius:10px;background:transparent;color:#94a3b8;font-size:12px;cursor:pointer">Primeiro acesso: criar superadmin local</button>
+    <p id="authErr" style="color:#f87171;font-size:12px;min-height:1.2em;margin:8px 0 0"></p>
+  </div>
+</div>
+
+<!-- Nav: cole junto aos outros botões .nav -->
+<!--
+<button type="button" class="nav" data-nav="equipe" id="navEquipe" style="display:none">
+  <span>Equipe</span>
+</button>
+-->
+
+<section class="panel" id="p-equipe" style="display:none">
+  <h2 style="margin-top:0">Equipe</h2>
+  <p class="hint">Cargos e logins — grava na planilha (webhook) e no JSON local. Não edite senha na mão na planilha.</p>
+  <div class="grid2" style="gap:12px;margin-bottom:16px">
+    <div class="field"><label class="lbl">Login</label><input id="eqLogin"/></div>
+    <div class="field"><label class="lbl">Nome</label><input id="eqNome"/></div>
+    <div class="field"><label class="lbl">Senha</label><input id="eqSenha" type="password"/></div>
+    <div class="field"><label class="lbl">Perfil</label>
+      <select id="eqPerfil">
+        <option value="operador">operador</option>
+        <option value="assistente">assistente</option>
+        <option value="administrador">administrador</option>
+        <option value="supervisor">supervisor</option>
+        <option value="superadmin">superadmin</option>
+      </select>
+    </div>
+    <div class="field"><label class="lbl">Escritório</label><input id="eqEsc"/></div>
+    <div class="field"><label class="lbl">E-mail</label><input id="eqEmail"/></div>
+  </div>
+  <button type="button" class="btn btn-pri" id="eqCreate">Criar usuário</button>
+  <div class="table-wrap" id="eqTable" style="margin-top:16px"></div>
+</section>

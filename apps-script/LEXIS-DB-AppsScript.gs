@@ -1,15 +1,18 @@
 /**
- * LEXIS GABINETE — Banco em planilha (estilo Supabase)
- * =====================================================
- * Abas: Usuarios | Processos | (opcionais: Notes, Honorarios…)
+ * LEXIS GABINETE — Webhook planilha (Supabase-like)
+ * =================================================
+ * IMPORTANTE NO DEPLOY (senão dá "HTTP 200 inesperado" / página de login):
+ *  1) Extensões → Apps Script → cole ESTE arquivo inteiro (apague o código antigo)
+ *  2) TOKEN abaixo = o mesmo do app (Configurações)
+ *  3) Implantar → Nova implantação → Tipo: Aplicativo da web
+ *     - Executar como: Eu
+ *     - Quem tem acesso: QUALQUER PESSOA   ← obrigatório (não "com o link")
+ *  4) Autorize a conta Google
+ *  5) Copie a URL que TERMINA EM /exec  (não use /dev)
+ *  6) No app: cole URL + token → Salvar → Testar webhook
+ *  7) Se mudar o código: Implantar → Gerenciar → lápis → Nova versão
  *
- * DEPLOY:
- * 1) Extensões → Apps Script → cole este arquivo
- * 2) TOKEN = senha secreta alinhada ao desktop
- * 3) Implantar → Aplicativo da web → Eu → Qualquer pessoa
- * 4) Cole a URL /exec no app (Configurações → webhook)
- *
- * Menu: Léxis → Garantir abas | Criar usuário | Listar usuários
+ * Menu Léxis: Garantir abas | Criar usuário | Listar usuários
  */
 
 var TOKEN = "w1-fase1-2026";
@@ -21,7 +24,10 @@ var USER_HEADERS = ["login", "nome", "senha", "perfil", "escritorio", "ativo", "
 var PROC_HEADERS = [
   "Protocolo", "Cliente", "Status", "Situacao", "UltimoRetorno", "ProximoRetorno",
   "Advogado", "Escritorio", "Tribunal", "Telefone", "CreatedBy", "AtendidoPor",
-  "Observacao", "DatajudEncerrado", "EmpresaId"
+  "Observacao", "DatajudEncerrado", "EmpresaId", "isBaixaTribunal", "ultimo_movimento",
+  "fase", "valor_causa", "updated_at", "Assistente", "Distribuicao", "Produtos",
+  "Data_Movimentacao", "Andamento", "Evento_Tipo", "Novo_Andamento", "Busca_Apreensao",
+  "Cumprimento", "DJEN_Resumo", "Dias_Sem_Retorno", "Procedente", "Improcedente"
 ];
 
 function onOpen() {
@@ -53,11 +59,9 @@ function ensureSheetWithHeaders_(ss, name, headers) {
     sh.setFrozenRows(1);
     return;
   }
-  // completa colunas que faltam
   headers.forEach(function (h) {
     if (existing.indexOf(h) < 0) {
-      var col = sh.getLastColumn() + 1;
-      sh.getRange(1, col).setValue(h);
+      sh.getRange(1, sh.getLastColumn() + 1).setValue(h);
       existing.push(h);
     }
   });
@@ -70,11 +74,11 @@ function sha256_(text) {
     return v.length === 1 ? "0" + v : v;
   }).join("");
 }
-
-function uuid_() {
-  return Utilities.getUuid();
+function uuid_() { return Utilities.getUuid(); }
+function norm(s) {
+  return String(s || "").replace(/\s+/g, "").replace(/_/g, "").toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
-
 function normPerfil_(p) {
   var s = String(p || "operador").toLowerCase().trim();
   if (/super\s*admin|superadmin/.test(s)) return "superadmin";
@@ -83,25 +87,72 @@ function normPerfil_(p) {
   if (/assist/.test(s)) return "assistente";
   return "operador";
 }
+function out_(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}
 
+function doGet(e) {
+  // GET no /exec deve devolver JSON (teste no navegador)
+  return out_({
+    ok: true,
+    pong: true,
+    app: "lexis-db-supabase-sheet",
+    ts: new Date().toISOString(),
+    hint: "POST com {token, ping:true} ou {token, rows:[...]}"
+  });
+}
+
+function doPost(e) {
+  try {
+    var raw = (e && e.postData && e.postData.contents) ? e.postData.contents : "{}";
+    var body = {};
+    try { body = JSON.parse(raw); } catch (err) {
+      return out_({ ok: false, error: "JSON inválido" });
+    }
+    if (!body || body.token !== TOKEN) {
+      return out_({ ok: false, error: "token invalido — confira TOKEN no script e no app" });
+    }
+    // ping (Testar webhook no app)
+    if (body.ping) {
+      return out_({ ok: true, pong: true, app: "lexis-gabinete-sync", ts: new Date().toISOString() });
+    }
+
+    var action = String(body.action || body.op || "").toLowerCase();
+    if (action === "ensure_schema") {
+      ensureSheets();
+      return out_({ ok: true, sheets: [USERS_SHEET, PROC_SHEET] });
+    }
+    if (action === "login") return out_(authLogin_(body.login || body.email, body.senha || body.password));
+    if (action === "list_users") return out_({ ok: true, users: listUsersPublic_() });
+    if (action === "create_user") {
+      return out_(criarUsuario(body.login, body.nome, body.senha || body.password, body.perfil, body.escritorio, body.email));
+    }
+    if (action === "set_ativo") return out_(setUserAtivo_(body.login, body.ativo));
+    if (action === "set_perfil") return out_(setUserPerfil_(body.login, body.perfil));
+    if (action === "upsert_processos" || action === "upsertretornos" || body.rows) {
+      return out_(upsertProcessos_(body.rows || []));
+    }
+    return out_({ ok: false, error: "action desconhecida" });
+  } catch (err) {
+    return out_({ ok: false, error: String(err.message || err) });
+  }
+}
+
+/* —— usuários —— */
 function getUsersSheet_() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   ensureSheetWithHeaders_(ss, USERS_SHEET, USER_HEADERS);
   return ss.getSheetByName(USERS_SHEET);
 }
-
 function headerMap_(sh) {
   var lastCol = Math.max(1, sh.getLastColumn());
   var headers = sh.getRange(HEADER_ROW, 1, 1, lastCol).getValues()[0].map(function (h) {
     return String(h || "").trim();
   });
   var map = {};
-  headers.forEach(function (h, i) {
-    if (h) map[h.toLowerCase()] = i;
-  });
+  headers.forEach(function (h, i) { if (h) map[h.toLowerCase()] = i; });
   return { headers: headers, map: map };
 }
-
 function criarUsuario(login, nome, senha, perfil, escritorio, email) {
   login = String(login || "").trim().toLowerCase();
   if (!login || !senha) throw new Error("login e senha obrigatórios");
@@ -115,57 +166,43 @@ function criarUsuario(login, nome, senha, perfil, escritorio, email) {
       throw new Error("login/email já existe");
     }
   }
-  var row = [];
-  USER_HEADERS.forEach(function (h) {
-    var v = "";
-    if (h === "login") v = login;
-    else if (h === "nome") v = nome || login;
-    else if (h === "senha") v = sha256_(senha);
-    else if (h === "perfil") v = normPerfil_(perfil);
-    else if (h === "escritorio") v = escritorio || "";
-    else if (h === "ativo") v = "sim";
-    else if (h === "email") v = (email || login).toLowerCase();
-    else if (h === "auth_user_id" || h === "id") v = uuid_();
-    row.push(v);
+  var id = uuid_();
+  var line = hm.headers.map(function (h) {
+    var k = h.toLowerCase();
+    if (k === "login") return login;
+    if (k === "nome") return nome || login;
+    if (k === "senha") return sha256_(senha);
+    if (k === "perfil") return normPerfil_(perfil);
+    if (k === "escritorio") return escritorio || "";
+    if (k === "ativo") return "sim";
+    if (k === "email") return (email || login).toLowerCase();
+    if (k === "auth_user_id" || k === "id") return id;
+    return "";
   });
-  // alinha à ordem real do cabeçalho
-  var out = hm.headers.map(function (h) {
-    var i = USER_HEADERS.indexOf(h);
-    return i >= 0 ? row[i] : "";
-  });
-  sh.appendRow(out);
-  return { ok: true, login: login, perfil: normPerfil_(perfil) };
+  sh.appendRow(line);
+  return { ok: true, login: login, perfil: normPerfil_(perfil), auth_user_id: id };
 }
-
 function uiCriarUsuario() {
   var ui = SpreadsheetApp.getUi();
-  var login = ui.prompt("Login", "Login (ou e-mail):", ui.ButtonSet.OK_CANCEL);
-  if (login.getSelectedButton() !== ui.Button.OK) return;
-  var nome = ui.prompt("Nome", "Nome completo:", ui.ButtonSet.OK_CANCEL);
-  if (nome.getSelectedButton() !== ui.Button.OK) return;
-  var senha = ui.prompt("Senha", "Senha forte:", ui.ButtonSet.OK_CANCEL);
-  if (senha.getSelectedButton() !== ui.Button.OK) return;
-  var perfil = ui.prompt("Perfil", "superadmin | supervisor | administrador | operador", ui.ButtonSet.OK_CANCEL);
-  if (perfil.getSelectedButton() !== ui.Button.OK) return;
+  var a = ui.prompt("Login", "Login:", ui.ButtonSet.OK_CANCEL);
+  if (a.getSelectedButton() !== ui.Button.OK) return;
+  var b = ui.prompt("Nome", "Nome:", ui.ButtonSet.OK_CANCEL);
+  if (b.getSelectedButton() !== ui.Button.OK) return;
+  var c = ui.prompt("Senha", "Senha:", ui.ButtonSet.OK_CANCEL);
+  if (c.getSelectedButton() !== ui.Button.OK) return;
+  var d = ui.prompt("Perfil", "superadmin|supervisor|administrador|operador", ui.ButtonSet.OK_CANCEL);
+  if (d.getSelectedButton() !== ui.Button.OK) return;
   try {
-    var r = criarUsuario(login.getResponseText(), nome.getResponseText(), senha.getResponseText(), perfil.getResponseText(), "", login.getResponseText());
-    ui.alert("Usuário criado: " + r.login + " (" + r.perfil + ")");
-  } catch (e) {
-    ui.alert("Erro: " + e.message);
-  }
+    var r = criarUsuario(a.getResponseText(), b.getResponseText(), c.getResponseText(), d.getResponseText(), "", a.getResponseText());
+    ui.alert("OK: " + r.login + " (" + r.perfil + ")");
+  } catch (e) { ui.alert(String(e.message || e)); }
 }
-
 function uiListarUsuarios() {
-  var sh = getUsersSheet_();
-  var data = sh.getDataRange().getValues();
-  var lines = [];
-  for (var r = 1; r < data.length; r++) {
-    if (!data[r][0]) continue;
-    lines.push(data[r][0] + " | " + data[r][1] + " | " + data[r][3] + " | " + data[r][5]);
-  }
-  SpreadsheetApp.getUi().alert(lines.length ? lines.join("\n") : "Nenhum usuário");
+  var list = listUsersPublic_();
+  SpreadsheetApp.getUi().alert(list.length ? list.map(function (u) {
+    return u.login + " | " + u.nome + " | " + u.perfil + " | " + u.ativo;
+  }).join("\n") : "Nenhum");
 }
-
 function listUsersPublic_() {
   var sh = getUsersSheet_();
   var hm = headerMap_(sh);
@@ -187,7 +224,6 @@ function listUsersPublic_() {
   }
   return out;
 }
-
 function authLogin_(loginOrEmail, senha) {
   var sh = getUsersSheet_();
   var hm = headerMap_(sh);
@@ -198,10 +234,11 @@ function authLogin_(loginOrEmail, senha) {
     var login = String(data[r][hm.map.login] || "").trim().toLowerCase();
     var email = String(data[r][hm.map.email] || "").trim().toLowerCase();
     var ativo = String(data[r][hm.map.ativo] || "sim").toLowerCase();
-    if (ativo === "nao" || ativo === "false" || ativo === "0") continue;
+    if (ativo === "nao" || ativo === "false") continue;
     if (login === key || email === key) {
-      var stored = String(data[r][hm.map.senha] || "").trim().toLowerCase();
-      if (stored !== hash) return { ok: false, error: "senha inválida" };
+      if (String(data[r][hm.map.senha] || "").toLowerCase() !== hash) {
+        return { ok: false, error: "senha inválida" };
+      }
       return {
         ok: true,
         user: {
@@ -218,61 +255,6 @@ function authLogin_(loginOrEmail, senha) {
   }
   return { ok: false, error: "usuário não encontrado" };
 }
-
-function norm(s) {
-  return String(s || "")
-    .replace(/\s+/g, "")
-    .replace(/_/g, "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-}
-
-function doGet() {
-  return out_({ ok: true, app: "lexis-db-supabase-sheet", ts: new Date().toISOString() });
-}
-
-function doPost(e) {
-  try {
-    var body = JSON.parse((e.postData && e.postData.contents) || "{}");
-    if (!body || body.token !== TOKEN) return out_({ ok: false, error: "token invalido" });
-    if (body.ping) return out_({ ok: true, pong: true });
-
-    var action = String(body.action || body.op || "").toLowerCase();
-
-    // —— USUARIOS ——
-    if (action === "ensure_schema") {
-      ensureSheets();
-      return out_({ ok: true, sheets: [USERS_SHEET, PROC_SHEET] });
-    }
-    if (action === "login") {
-      return out_(authLogin_(body.login || body.email, body.senha || body.password));
-    }
-    if (action === "list_users") {
-      return out_({ ok: true, users: listUsersPublic_() });
-    }
-    if (action === "create_user") {
-      var r = criarUsuario(body.login, body.nome, body.senha || body.password, body.perfil, body.escritorio, body.email);
-      return out_(r);
-    }
-    if (action === "set_ativo") {
-      return out_(setUserAtivo_(body.login, body.ativo));
-    }
-    if (action === "set_perfil") {
-      return out_(setUserPerfil_(body.login, body.perfil));
-    }
-
-    // —— PROCESSOS (compat sync 2 vias) ——
-    if (action === "upsert_processos" || body.rows) {
-      return out_(upsertProcessos_(body.rows || []));
-    }
-
-    return out_({ ok: false, error: "action desconhecida: " + action });
-  } catch (err) {
-    return out_({ ok: false, error: String(err.message || err) });
-  }
-}
-
 function setUserAtivo_(login, ativo) {
   login = String(login || "").trim().toLowerCase();
   var sh = getUsersSheet_();
@@ -286,7 +268,6 @@ function setUserAtivo_(login, ativo) {
   }
   return { ok: false, error: "não encontrado" };
 }
-
 function setUserPerfil_(login, perfil) {
   login = String(login || "").trim().toLowerCase();
   var sh = getUsersSheet_();
@@ -301,22 +282,20 @@ function setUserPerfil_(login, perfil) {
   return { ok: false, error: "não encontrado" };
 }
 
+/* —— processos (sync 2 vias do desktop) —— */
 function upsertProcessos_(rows) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   ensureSheetWithHeaders_(ss, PROC_SHEET, PROC_HEADERS);
-  var sh = ss.getSheetByName(PROC_SHEET);
+  var sh = ss.getSheetByName(PROC_SHEET) || ss.getSheets()[0];
   var lastCol = Math.max(1, sh.getLastColumn());
   var headers = sh.getRange(HEADER_ROW, 1, 1, lastCol).getValues()[0].map(function (h) {
     return String(h || "").trim();
   });
   var keyIdx = -1;
   for (var ci = 0; ci < headers.length; ci++) {
-    if (/protocolo|cnj|processo|numero/.test(norm(headers[ci]))) {
-      keyIdx = ci;
-      break;
-    }
+    if (/protocolo|cnj|processo|numero/.test(norm(headers[ci]))) { keyIdx = ci; break; }
   }
-  if (keyIdx < 0) return { ok: false, error: "coluna Protocolo não encontrada" };
+  if (keyIdx < 0) return { ok: false, error: "coluna Protocolo não encontrada — rode Léxis → Garantir abas" };
 
   var data = sh.getDataRange().getValues();
   var index = {};
@@ -326,30 +305,46 @@ function upsertProcessos_(rows) {
   }
 
   var updated = 0, inserted = 0;
-  rows.forEach(function (rowObj) {
+  (rows || []).forEach(function (rowObj) {
     if (!rowObj || typeof rowObj !== "object") return;
     var proto = String(rowObj.Protocolo || rowObj.protocolo || rowObj.protocolo_ref || "").trim();
     var digits = proto.replace(/\D/g, "");
     if (!digits) return;
-    var line = headers.map(function (h) {
-      var nk = norm(h);
-      for (var key in rowObj) {
-        if (norm(key) === nk) return rowObj[key];
-      }
-      if (/protocolo/.test(nk)) return proto;
-      return "";
-    });
+
+    // aliases comuns do app.js
+    if (rowObj.ultimo && !rowObj.UltimoRetorno && !rowObj.Retorno) rowObj.UltimoRetorno = rowObj.ultimo;
+    if (rowObj.prazo && !rowObj.ProximoRetorno && !rowObj.Proximo_Retorno) rowObj.ProximoRetorno = rowObj.prazo;
+    if (rowObj.obs && !rowObj.Observacao && !rowObj.Observacoes) rowObj.Observacao = rowObj.obs;
+    if (rowObj.status && !rowObj.Status && !rowObj.Situacao) rowObj.Status = rowObj.status;
+    if (rowObj.cliente && !rowObj.Cliente) rowObj.Cliente = rowObj.cliente;
+
     if (index[digits]) {
-      sh.getRange(index[digits], 1, index[digits], headers.length).setValues([line]);
+      var rowNum = index[digits];
+      var current = sh.getRange(rowNum, 1, rowNum, headers.length).getValues()[0];
+      headers.forEach(function (h, i) {
+        var nk = norm(h);
+        for (var key in rowObj) {
+          if (!Object.prototype.hasOwnProperty.call(rowObj, key)) continue;
+          if (norm(key) === nk) {
+            var val = rowObj[key];
+            if (val !== undefined && val !== null && val !== "") current[i] = val;
+          }
+        }
+      });
+      sh.getRange(rowNum, 1, rowNum, headers.length).setValues([current]);
       updated++;
     } else {
+      var line = headers.map(function (h) {
+        var nk = norm(h);
+        for (var key in rowObj) {
+          if (norm(key) === nk) return rowObj[key];
+        }
+        if (/protocolo/.test(nk)) return proto;
+        return "";
+      });
       sh.appendRow(line);
       inserted++;
     }
   });
-  return { ok: true, updated: updated, inserted: inserted };
-}
-
-function out_(obj) {
-  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+  return { ok: true, updated: updated, inserted: inserted, total: (rows || []).length };
 }

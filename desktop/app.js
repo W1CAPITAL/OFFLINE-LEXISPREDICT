@@ -436,9 +436,30 @@
   function loadCfg() {
     try {
       cfg.url = localStorage.getItem(LS.url) || "";
-      cfg.webhook = localStorage.getItem(LS.web) || "https://script.google.com/macros/s/AKfycbxro8UqTJUbFLSOFkpR3unyaBFX_FF-lOVc9_KBcJ8GP-fQmpTzAPRh7a1JLN4ECJMu/exec";
+      cfg.webhook = localStorage.getItem(LS.web) || "";
       cfg.token = localStorage.getItem(LS.tok) || "w1-fase1-2026";
       cfg.oper = localStorage.getItem(LS.oper) || "";
+    } catch (e) {}
+  }
+  function readCfgFromInputs(allowEmptyWipe) {
+    // allowEmptyWipe=true só no botão Salvar explícito
+    try {
+      var u = $("cfgUrl") ? $("cfgUrl").value.trim() : "";
+      var w = $("cfgWebhook") ? $("cfgWebhook").value.trim() : "";
+      var tok = $("cfgToken") ? $("cfgToken").value.trim() : "";
+      var op = $("cfgOper") ? $("cfgOper").value.trim() : "";
+      if (w) w = w.replace(/\/dev(\b|$)/, "/exec");
+      if (allowEmptyWipe) {
+        cfg.url = u;
+        cfg.webhook = w;
+        cfg.token = tok || cfg.token || "w1-fase1-2026";
+        cfg.oper = op;
+      } else {
+        if (u) cfg.url = u;
+        if (w) cfg.webhook = w;
+        if (tok) cfg.token = tok;
+        if (op) cfg.oper = op;
+      }
     } catch (e) {}
   }
   function saveCfg() {
@@ -558,6 +579,8 @@
     });
   }
   function syncAll() {
+    readCfgFromInputs(false);
+    saveCfg();
     var t0 = Date.now();
     setSyncPill("sincronizando…", "warn");
     var watchdog = setTimeout(function () {
@@ -582,29 +605,48 @@
   function testWebhook() {
     if (!$("cfgStatus")) return;
     var st = $("cfgStatus");
+    // SEMPRE lê dos inputs (não usa cfg velho / não apaga link)
+    readCfgFromInputs(false);
+    st.className = "hint";
     st.textContent = "Testando…";
-    if (!cfg.webhook) { st.className = "hint err-msg"; st.textContent = "Falta a URL do webhook."; return; }
-    postRows({ token: cfg.token || "?", ping: true }).then(function (r) {
-      if (r && r.ok && r.json && r.json.pong) {
-        st.className = "hint ok-msg";
-        st.textContent = "Webhook OK — a planilha está pronta para receber edições.";
-        toast("Webhook conectado", "ok-msg");
-      } else {
+    if (!cfg.webhook) {
+      st.className = "hint err-msg";
+      st.textContent = "Falta a URL do webhook (deve terminar em /exec).";
+      return;
+    }
+    if (!/script\.google\.com\/macros\/s\//i.test(cfg.webhook)) {
+      st.className = "hint err-msg";
+      st.textContent = "URL inválida. Use a URL de implantação do Apps Script terminando em /exec.";
+      return;
+    }
+    postRows({ token: cfg.token || "w1-fase1-2026", ping: true }).then(function (r) {
+      if (r && r.auth) {
         st.className = "hint err-msg";
-        var detail = (r && r.json && r.json.error) || (r && r.error) || "";
-        if (detail) {
-          st.textContent = "Webhook falhou: " + detail + (r && r.http ? " (HTTP " + r.http + ")" : "") + ". Confira o acesso 'Qualquer pessoa' e o token.";
-        } else {
-          st.textContent = "Webhook respondeu algo inesperado" + (r && r.http ? " (HTTP " + r.http + ")" : "") + ". Pode ser a aba/página de login do Google.";
-        }
+        st.textContent = "Google pediu login. Reimplante o script com acesso: QUALQUER PESSOA (não só você).";
+        return;
+      }
+      if (r && r.json && (r.json.pong || r.json.ok)) {
+        st.className = "hint ok-msg";
+        st.textContent = "Webhook OK — planilha pronta para receber edições.";
+        toast("Webhook conectado", "ok-msg");
+        return;
+      }
+      st.className = "hint err-msg";
+      var detail = (r && r.json && r.json.error) || (r && r.error) || "";
+      var raw = (r && r.raw) || (r && r.text) || "";
+      if (/<html|<body|accounts\.google|Sign in/i.test(String(raw).slice(0, 400))) {
+        st.textContent = "Resposta HTML do Google (HTTP " + (r && r.http || "?") + "). Deploy: Aplicativo da web → acesso QUALQUER PESSOA → URL /exec → Nova versão após editar o código.";
+      } else if (detail) {
+        st.textContent = "Webhook falhou: " + detail + (r && r.http ? " (HTTP " + r.http + ")" : "");
+      } else {
+        st.textContent = "Webhook respondeu algo inesperado (HTTP " + (r && r.http || "?") + "). Cole o script LEXIS-DB-AppsScript.gs e crie NOVA implantação /exec.";
       }
     }).catch(function (e) {
       st.className = "hint err-msg";
-      st.textContent = "Falha: " + (e && e.message ? e.message : "sem conexão");
+      st.textContent = "Erro de rede: " + (e && e.message ? e.message : e);
     });
   }
 
-  /* ============================ renderizadores ============================ */
   function kpiCard(l, v, cls, s) {
     return '<div class="kpi ' + (cls || "") + '"><div class="l">' + l + '</div><div class="v">' + v + '</div>' + (s ? '<div class="s">' + s + "</div>" : "") + "</div>";
   }
@@ -1586,10 +1628,8 @@
   }
   function bindConfig() {
     $("btnSaveCfg").onclick = function () {
-      cfg.url = $("cfgUrl").value.trim();
-      cfg.webhook = $("cfgWebhook").value.trim();
-      cfg.token = $("cfgToken").value.trim();
-      cfg.oper = $("cfgOper").value.trim();
+      readCfgFromInputs(true);
+      if (!cfg.token) cfg.token = "w1-fase1-2026";
       saveCfg();
       if ($("sheetsUrl")) $("sheetsUrl").value = cfg.url;
       toast("Configurações salvas");

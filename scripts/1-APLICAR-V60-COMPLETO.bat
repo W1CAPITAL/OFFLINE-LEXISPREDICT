@@ -1,6 +1,6 @@
 @echo off
 chcp 65001 >nul
-title Lexis Gabinete v6.0 - aplicar pacote COMPLETO no EXE
+title Lexis Gabinete v6.2 - aplicar pacote COMPLETO no EXE
 echo FECHE o Lexis Gabinete.exe antes de continuar.
 pause
 
@@ -33,8 +33,8 @@ if exist "%SRC%\assets\icon.ico" copy /Y "%SRC%\assets\icon.ico" "%DEST%\resourc
 if exist "%SRC%\assets\icon.png" copy /Y "%SRC%\assets\icon.png" "%DEST%\resources\app\assets\icon.png" >nul
 
 echo.
-echo OK - v6.0 COMPLETO aplicado em:
+echo OK - v6.2 COMPLETO aplicado em:
 echo %DEST%
 echo.
-echo Abra Lexis Gabinete.exe - Sobre deve mostrar v6.0 e o parser vai aceitar o GET INTEGRADO.
+echo Abra Lexis Gabinete.exe - Sobre deve mostrar v6.2 e o parser vai aceitar o GET INTEGRADO.
 pause

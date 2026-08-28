@@ -1,0 +1,2 @@
+login,nome,senha,perfil,escritorio,ativo,email,auth_user_id,id
+admin,Administrador,COLOCAR_HASH_VIA_MENU_LEXIS,superadmin,Matriz,sim,admin@w1.local,,

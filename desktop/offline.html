@@ -181,6 +181,7 @@ label.lbl{display:block;font-size:.64rem;font-weight:700;color:var(--muted);marg
       <button type="button" class="nav" data-nav="scanner"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 12h10"/></svg><span>Scanner DataJud+DJEN</span></button>
       <button type="button" class="nav" data-nav="notas"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7Z"/><path d="M9 9h6M9 13h6M9 17h4"/></svg><span>Notas</span></button>
       <div class="nav-sec">Sistema</div>
+      <button type="button" class="nav" data-nav="equipe" id="navEquipe" style="display:none"><span>Equipe</span></button>
       <button type="button" class="nav" data-nav="config"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg><span>Configurações</span></button>
     </div>
     <div class="side-foot">
@@ -304,6 +305,30 @@ label.lbl{display:block;font-size:.64rem;font-weight:700;color:var(--muted);marg
         <div class="kpis" id="agKpis"></div>
         <div class="table-wrap" id="agendaTable"></div>
       </section>
+
+      
+<section class="panel" id="p-equipe">
+  <h2 style="margin-top:0">Equipe</h2>
+  <p class="hint">Logins e cargos — planilha Usuarios + JSON local. Senha só via app (hash).</p>
+  <div class="grid2" style="gap:12px;margin-bottom:16px">
+    <div class="field"><label class="lbl">Login</label><input id="eqLogin"/></div>
+    <div class="field"><label class="lbl">Nome</label><input id="eqNome"/></div>
+    <div class="field"><label class="lbl">Senha</label><input id="eqSenha" type="password"/></div>
+    <div class="field"><label class="lbl">Perfil</label>
+      <select id="eqPerfil">
+        <option value="operador">operador</option>
+        <option value="assistente">assistente</option>
+        <option value="administrador">administrador</option>
+        <option value="supervisor">supervisor</option>
+        <option value="superadmin">superadmin</option>
+      </select>
+    </div>
+    <div class="field"><label class="lbl">Escritório</label><input id="eqEsc"/></div>
+    <div class="field"><label class="lbl">E-mail</label><input id="eqEmail"/></div>
+  </div>
+  <button type="button" class="btn btn-pri" id="eqCreate">Criar usuário</button>
+  <div class="table-wrap" id="eqTable" style="margin-top:16px"></div>
+</section>
 
       <section class="panel" id="p-import">
         <div class="card">
@@ -524,5 +549,162 @@ label.lbl{display:block;font-size:.64rem;font-weight:700;color:var(--muted);marg
 
 <div class="toast" id="toast"></div>
 <script src="app.js"></script>
+<!-- Cole antes de <script>
+/**
+ * Cole no final do <script> principal de offline.html
+ */
+(function authEquipeBoot() {
+  const gate = document.getElementById("authGate");
+  const api = window.lexisOffline;
+  if (!api || !api.authLogin) {
+    console.warn("auth IPC ausente — aplique preload + main snippets");
+    return;
+  }
+
+  function webhook() {
+    return (document.getElementById("authWebhook")?.value || localStorage.getItem("lexis_webhook") || "").trim();
+  }
+
+  async function showApp() {
+    if (gate) gate.style.display = "none";
+    const sess = (await api.authSession()).session;
+    window.__lexisSession = sess;
+    const navEq = document.getElementById("navEquipe");
+    if (navEq && sess && /superadmin|supervisor/i.test(sess.perfil || "")) {
+      navEq.style.display = "";
+    }
+    try {
+      if (typeof renderAll === "function") renderAll();
+    } catch (_) {}
+  }
+
+  async function requireAuth() {
+    const s = await api.authSession();
+    if (s?.session) {
+      await showApp();
+      return;
+    }
+    if (gate) {
+      gate.style.display = "flex";
+      const w = localStorage.getItem("lexis_webhook");
+      if (w && document.getElementById("authWebhook")) document.getElementById("authWebhook").value = w;
+    }
+  }
+
+  document.getElementById("authBtn")?.addEventListener("click", async () => {
+    const err = document.getElementById("authErr");
+    err.textContent = "";
+    const login = document.getElementById("authLogin").value;
+    const senha = document.getElementById("authSenha").value;
+    const wh = webhook();
+    if (wh) localStorage.setItem("lexis_webhook", wh);
+    const r = await api.authLogin({ login, senha, webhookUrl: wh, token: localStorage.getItem("lexis_token") || "w1-fase1-2026" });
+    if (!r.ok) {
+      err.textContent = r.error || "falha";
+      return;
+    }
+    await showApp();
+  });
+
+  document.getElementById("authBootstrap")?.addEventListener("click", async () => {
+    const err = document.getElementById("authErr");
+    const login = document.getElementById("authLogin").value || "admin";
+    const senha = document.getElementById("authSenha").value || "admin123";
+    const r = await api.authBootstrapSuperadmin({ login, senha, nome: "Administrador" });
+    if (!r.ok) {
+      err.textContent = r.error || "falha";
+      return;
+    }
+    err.style.color = "#4ade80";
+    err.textContent = "Superadmin criado. Entrando…";
+    await showApp();
+  });
+
+  document.getElementById("eqCreate")?.addEventListener("click", async () => {
+    const wh = localStorage.getItem("lexis_webhook") || "";
+    const r = await api.usersCreate({
+      login: document.getElementById("eqLogin").value,
+      nome: document.getElementById("eqNome").value,
+      senha: document.getElementById("eqSenha").value,
+      perfil: document.getElementById("eqPerfil").value,
+      escritorio: document.getElementById("eqEsc").value,
+      email: document.getElementById("eqEmail").value,
+      webhookUrl: wh,
+      token: localStorage.getItem("lexis_token") || "w1-fase1-2026",
+    });
+    alert(r.ok ? "Usuário criado" : r.error || "erro");
+    if (r.ok) loadEquipe();
+  });
+
+  async function loadEquipe() {
+    const box = document.getElementById("eqTable");
+    if (!box) return;
+    const wh = localStorage.getItem("lexis_webhook") || "";
+    const r = await api.usersList({ webhookUrl: wh, token: localStorage.getItem("lexis_token") || "w1-fase1-2026" });
+    if (!r.ok) {
+      box.innerHTML = "<p class='hint'>" + (r.error || "") + "</p>";
+      return;
+    }
+    box.innerHTML =
+      "<table><thead><tr><th>Login</th><th>Nome</th><th>Perfil</th><th>Ativo</th><th>E-mail</th></tr></thead><tbody>" +
+      (r.users || [])
+        .map(
+          (u) =>
+            "<tr><td>" +
+            u.login +
+            "</td><td>" +
+            (u.nome || "") +
+            "</td><td>" +
+            (u.perfil || "") +
+            "</td><td>" +
+            (u.ativo || "") +
+            "</td><td>" +
+            (u.email || "") +
+            "</td></tr>"
+        )
+        .join("") +
+      "</tbody></table>";
+  }
+
+  // hook nav equipe
+  document.querySelectorAll("[data-nav=equipe]").forEach((btn) => {
+    btn.addEventListener("click", () => loadEquipe());
+  });
+
+  // filtro de carteira por perfil (se existir array cases global)
+  window.lexisCanSeeAllCases = function () {
+    const p = window.__lexisSession?.perfil || "";
+    return /superadmin|supervisor/i.test(p);
+  };
+  window.lexisFilterCasesByOwner = function (list) {
+    if (!Array.isArray(list)) return list;
+    if (window.lexisCanSeeAllCases()) return list;
+    const uid = window.__lexisSession?.auth_user_id;
+    if (!uid) return list;
+    return list.filter((c) => String(c.created_by || c.createdBy || "") === String(uid));
+  };
+
+  requireAuth();
+})();
+
+</script>
+</body> em offline.html -->
+<div id="authGate" style="display:none;position:fixed;inset:0;z-index:9999;background:#0B1220;color:#fafafa;align-items:center;justify-content:center;flex-direction:column;gap:12px;padding:24px">
+  <div style="width:min(400px,100%);background:#111827;border:1px solid #334155;border-radius:16px;padding:24px;box-shadow:0 20px 50px rgba(0,0,0,.5)">
+    <h2 style="margin:0 0 4px;font-size:1.15rem">Lexis Gabinete Offline</h2>
+    <p style="margin:0 0 16px;color:#94a3b8;font-size:.85rem">Login na planilha / base local (estilo Supabase)</p>
+    <label style="font-size:11px;color:#94a3b8">Login ou e-mail</label>
+    <input id="authLogin" style="width:100%;margin:4px 0 10px;padding:10px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#fff"/>
+    <label style="font-size:11px;color:#94a3b8">Senha</label>
+    <input id="authSenha" type="password" style="width:100%;margin:4px 0 10px;padding:10px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#fff"/>
+    <label style="font-size:11px;color:#94a3b8">Webhook planilha (opcional)</label>
+    <input id="authWebhook" placeholder="https://script.google.com/.../exec" style="width:100%;margin:4px 0 10px;padding:10px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#fff;font-size:12px"/>
+    <button type="button" id="authBtn" style="width:100%;padding:12px;border:0;border-radius:10px;background:#059669;color:#fff;font-weight:800;cursor:pointer">Entrar</button>
+    <button type="button" id="authBootstrap" style="width:100%;margin-top:8px;padding:10px;border:1px solid #475569;border-radius:10px;background:transparent;color:#94a3b8;font-size:12px;cursor:pointer">Primeiro acesso: criar superadmin local</button>
+    <p id="authErr" style="color:#f87171;font-size:12px;min-height:1.2em;margin:8px 0 0"></p>
+  </div>
+</div>
+
+
 </body>
 </html>

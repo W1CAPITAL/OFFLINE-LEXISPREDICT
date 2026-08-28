@@ -17,6 +17,12 @@ contextBridge.exposeInMainWorld("lexisOffline", {
   sheetsPush: (payload) => ipcRenderer.invoke("lexis-sheets-push", payload || {}),
   openExternal: (url) => ipcRenderer.invoke("lexis-open-external", url),
   getPaths: () => ipcRenderer.invoke("lexis-paths"),
+  authLogin: (payload) => ipcRenderer.invoke("lexis-auth-login", payload || {}),
+  authSession: () => ipcRenderer.invoke("lexis-auth-session"),
+  authLogout: () => ipcRenderer.invoke("lexis-auth-logout"),
+  usersList: (payload) => ipcRenderer.invoke("lexis-users-list", payload || {}),
+  usersCreate: (payload) => ipcRenderer.invoke("lexis-users-create", payload || {}),
+  authBootstrapSuperadmin: (payload) => ipcRenderer.invoke("lexis-auth-bootstrap-superadmin", payload || {}),
 });
 
 contextBridge.exposeInMainWorld("lexisDesktop", {
