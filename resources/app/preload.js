@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld("lexisOffline", {
   loadDb: () => ipcRenderer.invoke("lexis-db-load"),
   saveDb: (data) => ipcRenderer.invoke("lexis-db-save", data),
   exportCsvFile: (csv, name) => ipcRenderer.invoke("lexis-export-csv", csv, name || "lexis-carteira.csv"),
+  printPdf: (payload) => ipcRenderer.invoke("lexis-print-pdf", payload || {}),
   aiChat: (payload) => ipcRenderer.invoke("lexis-ai-chat", payload || {}),
   secretsStatus: () => ipcRenderer.invoke("lexis-secrets-status"),
   sheetsPush: (payload) => ipcRenderer.invoke("lexis-sheets-push", payload || {}),

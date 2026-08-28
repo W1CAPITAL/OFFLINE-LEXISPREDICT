@@ -1,1 +1,1 @@
-{"name":"lexis-offline-desktop","version":"6.0.0","main":"main.js","description":"Lexis Gabinete v6.0 — clone desktop do LexisPredict com scanner DataJud+DJEN, fila prioridade e sincronizacao 2 vias via Google Sheets"}
+{"name":"lexis-offline-desktop","version":"6.2.0","main":"main.js","description":"Lexis Gabinete v6.2 — clone desktop do LexisPredict com scanner DataJud+DJEN, fila prioridade, agenda semana/dia/lista, dossie operacional em PDF e login por usuario com separacao de casos via Google Sheets"}

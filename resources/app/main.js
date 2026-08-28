@@ -1,6 +1,6 @@
 /**
- * Lexis Gabinete v6.0
- * Offline-first + DataJud/DJEN + DB em arquivo + Sync Google Sheets (2 vias)
+ * Lexis Gabinete v6.2
+ * Offline-first + DataJud/DJEN + DB em arquivo + Sync Google Sheets (2 vias + login por usuário)
  */
 const { app, BrowserWindow, Menu, dialog, ipcMain, shell, session, nativeTheme } = require("electron");
 const path = require("path");
@@ -150,6 +150,30 @@ function maskCnj(digits) {
   if (d.length !== 20) return d;
   return d.slice(0, 7) + "-" + d.slice(7, 9) + "." + d.slice(9, 13) + "." + d.slice(13, 14) + "." + d.slice(14, 16) + "." + d.slice(16);
 }
+
+ipcMain.handle("lexis-print-pdf", async (_e, opts) => {
+  try {
+    const html = (opts && opts.html) || "";
+    if (!html) return { ok: false, error: "HTML vazio" };
+    const name = (opts && opts.name) || "dossie-operacional.pdf";
+    const { filePath, canceled } = await dialog.showSaveDialog({
+      defaultPath: name,
+      filters: [{ name: "PDF", extensions: ["pdf"] }],
+    });
+    if (canceled || !filePath) return { ok: false, canceled: true };
+    const win = new BrowserWindow({
+      show: false, width: 900, height: 1200,
+      webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
+    });
+    await win.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(html));
+    const pdf = await win.webContents.printToPDF({ printBackground: true, pageSize: "A4", landscape: false });
+    fs.writeFileSync(filePath, pdf);
+    if (!win.isDestroyed()) win.destroy();
+    return { ok: true, path: filePath };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
 
 ipcMain.handle("lexis-fetch-text", async (_e, url) => {
   const candidates = sheetsCsvCandidates(url);
@@ -673,7 +697,7 @@ function createMainWindow() {
   const ses = session.fromPartition(PARTITION, { cache: true });
   mainWindow = new BrowserWindow({
     width: 1480, height: 920, minWidth: 1100, minHeight: 700, show: false,
-    backgroundColor: "#0f172a", title: "Lexis Gabinete 6.0",
+    backgroundColor: "#0f172a", title: "Lexis Gabinete 6.2",
     webPreferences: {
       preload: appPath("preload.js"),
       contextIsolation: true,

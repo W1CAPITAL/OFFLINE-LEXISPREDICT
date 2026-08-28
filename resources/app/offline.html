@@ -152,10 +152,41 @@ label.lbl{display:block;font-size:.64rem;font-weight:700;color:var(--muted);marg
 .modal h3{margin:0 0 .4rem;font-size:1rem;font-weight:800}
 .toast{position:fixed;bottom:1.2rem;right:1.2rem;background:#111c1a;color:#d9fff0;border:1px solid rgba(15,157,111,.5);padding:.65rem 1rem;border-radius:.6rem;font-size:.75rem;font-weight:600;z-index:99;opacity:0;transition:.25s;pointer-events:none;max-width:min(420px,90vw)}
 .toast.show{opacity:1}
+.ag-v{margin:0 .25rem}.ag-v.active{background:var(--accent);color:#fff}
+.ag-grid{display:flex;gap:.5rem;overflow-x:auto;padding-bottom:.4rem}
+.ag-day{flex:1 1 0;min-width:150px;background:var(--elev);border:1px solid var(--border);border-radius:10px;overflow:hidden;display:flex;flex-direction:column}
+.ag-day.ag-today{border-color:var(--accent)}
+.ag-day.ag-past{opacity:.55}
+.ag-head{display:flex;justify-content:space-between;align-items:center;gap:.3rem;padding:.45rem .6rem;background:rgba(128,128,128,.08);border-bottom:1px solid var(--border)}
+.ag-head b{font-size:.78rem}.ag-head small{color:var(--atencao);font-size:.62rem}
+.ag-day.ag-today .ag-head{background:rgba(15,157,111,.12)}
+.ag-body{padding:.4rem;display:flex;flex-direction:column;gap:.35rem}
+.ag-item{background:var(--bg);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:8px;padding:.35rem .5rem}
+.ag-item .row-actions{margin-top:.25rem;display:flex;gap:.3rem;flex-wrap:wrap}
+.task-group .table-wrap{margin-top:.5rem}
+.overlay{position:fixed;inset:0;z-index:300;background:rgba(6,8,14,.94);display:flex;align-items:center;justify-content:center;padding:1rem}
+.overlay.hidden{display:none}
+.overlay .card{background:var(--elev);border:1px solid var(--border);border-radius:14px;box-shadow:0 24px 80px rgba(0,0,0,.5)}
+.overlay .card h2{margin-top:0}
 .ok-msg{color:var(--prazook)} .err-msg{color:var(--vencido)}
+.pill.rose{color:var(--crit);border-color:rgba(217,70,239,.45)}
 </style>
 </head>
 <body>
+<div class="overlay" id="loginOverlay">
+  <div class="card" style="width:min(400px,92vw)">
+    <h2>Login · Lexis Gabinete</h2>
+    <p class="hint">Usuário e senha são validados na planilha (webhook). Você vê apenas os seus casos.</p>
+    <div class="field"><label class="lbl">Usuário</label><input id="loginUser" placeholder="seu login" autocomplete="off"/></div>
+    <div class="field"><label class="lbl">Senha</label><input type="password" id="loginPass" placeholder="senha"/></div>
+    <div class="toolbar">
+      <button type="button" class="btn btn-pri" id="btnLogin">Entrar</button>
+      <button type="button" class="btn" id="btnLoginConfig">Config</button>
+    </div>
+    <p class="hint ok-msg" id="loginMsg">—</p>
+    <button type="button" class="btn btn-sm" id="btnLoginLocal" title="Só para uso sem internet; sem separação de usuários">Entrar em modo local (sem servidor)</button>
+  </div>
+</div>
 <div class="app">
   <aside class="side" id="side">
     <div class="brand">
@@ -188,7 +219,7 @@ label.lbl{display:block;font-size:.64rem;font-weight:700;color:var(--muted);marg
         <span class="pill" id="connPill">local</span>
         <span class="pill" id="capPill">0 proc.</span>
       </div>
-      <span id="verTxt">Lexis Gabinete v6.0</span>
+      <span id="verTxt">Lexis Gabinete v6.2</span>
       <button type="button" class="btn btn-sm" style="margin-top:.4rem" id="btnSidebar">‹ recolher</button>
     </div>
   </aside>
@@ -198,6 +229,8 @@ label.lbl{display:block;font-size:.64rem;font-weight:700;color:var(--muted);marg
       <div class="ttl"><h1 id="pageTitle">Painel da carteira</h1><small id="pageSub">Visão geral</small></div>
       <div class="sp"></div>
       <span class="pill" id="syncPill">não sincronizado</span>
+      <span class="pill" id="userChip">—</span>
+      <button type="button" class="btn" id="btnLogout" style="display:none">Sair</button>
       <button type="button" class="btn" id="btnSync" title="Sincronizar com a planilha (puxa atualizações e envia pendências)">Sincronizar</button>
       <button type="button" class="btn btn-pri" id="btnSaveDisk">Salvar PC</button>
       <button type="button" class="btn" id="btnTheme" title="Tema claro/escuro">&#9681;</button>
@@ -208,7 +241,7 @@ label.lbl{display:block;font-size:.64rem;font-weight:700;color:var(--muted);marg
         <div class="kpis" id="kpiRow"></div>
         <div class="grid2">
           <div class="card">
-            <h2>Fila crítica (vencidos + hoje)</h2>
+            <h2>Fila de contato (vencidos + hoje)</h2>
             <div class="table-wrap" id="critTable"></div>
           </div>
           <div>
@@ -240,19 +273,35 @@ label.lbl{display:block;font-size:.64rem;font-weight:700;color:var(--muted);marg
       </section>
 
       <section class="panel" id="p-fila">
-        <div class="toolbar">
-          <input id="qFila" placeholder="Buscar cliente, CNJ, telefone…" style="flex:1;min-width:180px"/>
-          <select id="filtroFila" style="width:auto">
-            <option value="fila">Fila crítica (vencido + hoje)</option>
-            <option value="vencido">Só vencidos</option>
-            <option value="hoje">É hoje</option>
-            <option value="atencao">Atenção (≤3 dias)</option>
-            <option value="prioridade">Todas por prioridade</option>
-            <option value="ativos">Todos ativos</option>
-          </select>
-        </div>
         <div class="kpis" id="filaKpis"></div>
-        <div class="table-wrap" id="filaTable"></div>
+        <div class="toolbar" id="filaToolbar">
+          <input id="qFila" placeholder="Pesquisar cliente ou CNJ…" style="flex:1;min-width:180px"/>
+          <select id="tfPrazo" style="width:auto">
+            <option value="score">Score ops</option>
+            <option value="vencid">Mais vencido</option>
+            <option value="prazo">Próximo prazo</option>
+            <option value="az">Cliente A–Z</option>
+          </select>
+          <select id="tfFiltro" style="width:auto">
+            <option value="todos">Toda a fila</option>
+            <option value="novidade">Novidade identificada</option>
+            <option value="vencido">Vencidos</option>
+            <option value="hoje">É hoje</option>
+            <option value="ba">Busca e apreensão</option>
+            <option value="parados">Parados ≥60d</option>
+            <option value="sil45">Silêncio ≥45d</option>
+            <option value="cumpr">Cumprimento</option>
+            <option value="tranquilos">Casos tranquilos</option>
+          </select>
+          <label class="lbl" style="display:flex;align-items:center;gap:.4rem;width:auto"><input type="checkbox" id="tfMeusHoje" style="width:auto"/> Meus hoje</label>
+        </div>
+        <div id="filaCards"></div>
+        <div class="toolbar" style="justify-content:flex-end;gap:.4rem">
+          <span class="pill" id="tfMetaInfo">Meta do dia · 10</span>
+          <button type="button" class="btn btn-sm" id="tfMetaSub">−5</button>
+          <button type="button" class="btn btn-sm" id="tfMetaAdd">+5</button>
+          <label class="lbl" style="display:flex;align-items:center;gap:.4rem;width:auto"><input type="checkbox" id="tfSoloMeta" style="width:auto"/> Só a meta (esconde o resto)</label>
+        </div>
       </section>
 
       <section class="panel" id="p-casos">
@@ -300,9 +349,20 @@ label.lbl{display:block;font-size:.64rem;font-weight:700;color:var(--muted);marg
       </section>
 
       <section class="panel" id="p-agenda">
-        <div class="hint">Próximo retorno dos próximos 7 dias. Clique em Atender para remarcar (a alteração volta para a planilha).</div>
         <div class="kpis" id="agKpis"></div>
-        <div class="table-wrap" id="agendaTable"></div>
+        <div class="toolbar">
+          <button type="button" class="btn btn-sm ag-v active" data-agv="semana">Semana</button>
+          <button type="button" class="btn btn-sm ag-v" data-agv="dia">Dia</button>
+          <button type="button" class="btn btn-sm ag-v" data-agv="lista">Lista</button>
+          <span style="flex:1"></span>
+          <span class="pill" id="agWeekLabel">—</span>
+          <button type="button" class="btn btn-sm" id="agPrev">‹</button>
+          <button type="button" class="btn btn-sm" id="agToday">Hoje</button>
+          <button type="button" class="btn btn-sm" id="agNext">›</button>
+        </div>
+        <div id="agWeek"></div>
+        <div id="agDay" style="display:none"></div>
+        <div id="agList" style="display:none"></div>
       </section>
 
       <section class="panel" id="p-import">
@@ -428,13 +488,45 @@ label.lbl{display:block;font-size:.64rem;font-weight:700;color:var(--muted);marg
       </section>
 
       <section class="panel" id="p-dossie">
+        <div class="toolbar">
+          <span class="pill">Relatório operacional · v6.2</span>
+          <select id="repPeriod" style="width:auto">
+            <option value="semana">Esta semana</option>
+            <option value="anterior">Semana passada</option>
+            <option value="mes">Mês atual</option>
+            <option value="all">Tudo acumulado</option>
+          </select>
+          <span style="flex:1"></span>
+          <button type="button" class="btn btn-pri" id="btnReport">Gerar relatório</button>
+          <button type="button" class="btn" id="btnReportPdf" title="Baixa o dossiê completo em PDF (A4)">Salvar PDF</button>
+          <button type="button" class="btn" id="btnCopyReport">Copiar</button>
+          <button type="button" class="btn" id="btnExportReport">Salvar TXT</button>
+        </div>
+        <div class="kpis" id="repKpis"></div>
         <div class="card">
-          <h2>Dossiê operacional</h2>
-          <div class="toolbar">
-            <button type="button" class="btn btn-pri" id="btnReport">Gerar relatório</button>
-            <button type="button" class="btn" id="btnCopyReport">Copiar</button>
-            <button type="button" class="btn" id="btnExportReport">Salvar TXT</button>
+          <h2>Atendimentos · por dia</h2>
+          <div id="repDias"></div>
+        </div>
+        <div class="card">
+          <h2>Top criticidade (10)</h2>
+          <div class="table-wrap" id="repCrit"></div>
+        </div>
+        <div class="grid2">
+          <div class="card">
+            <h2>Top encerramento</h2>
+            <div class="table-wrap" id="repEncerra"></div>
           </div>
+          <div class="card">
+            <h2>Parados há 60+ dias</h2>
+            <div class="table-wrap" id="repParados"></div>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Mérito · salvos / sentenciados</h2>
+          <div class="table-wrap" id="repMerito"></div>
+        </div>
+        <div class="card">
+          <h2>Texto simples (colar/arquivar)</h2>
           <div class="mono" id="reportOut">Clique em Gerar relatório.</div>
         </div>
       </section>
@@ -467,11 +559,13 @@ label.lbl{display:block;font-size:.64rem;font-weight:700;color:var(--muted);marg
             <button type="button" class="btn" id="btnSaveCfg">Salvar</button>
           </div>
           <p class="hint" id="cfgStatus"></p>
+          <p class="hint" id="cfgLastSync">Sem sincronização registrada.</p>
         </div>
         <div class="card">
           <h2>Sobre</h2>
-          <p class="hint">Lexis Gabinete v6.0 — clone desktop do LexisPredict (Vercel), dados via Google Sheets. DataJud/DJEN e cloud requerem internet; o resto funciona offline e sincroniza depois. Abra sempre pelo EXE.</p>
+          <p class="hint">Lexis Gabinete v6.2 — clone desktop do LexisPredict (Vercel), dados via Google Sheets. Login por usuário: cada pessoa só vê os próprios casos (Responsável) e a aba Processos da empresa mostra todos. DataJud/DJEN e cloud requerem internet; o resto funciona offline. Abra sempre pelo EXE.</p>
           <p class="hint" id="pathInfo">DB: —</p>
+          <p class="hint">Segurança: a leitura agora é autenticada pelo webhook (você recebe só os seus casos). A aba 'Usuarios' da planilha guarda login/senha (hash SHA-256). Casos sem Responsável aparecem para todos.</p>
         </div>
       </section>
 
@@ -506,6 +600,7 @@ label.lbl{display:block;font-size:.64rem;font-weight:700;color:var(--muted);marg
       <div class="field"><label class="lbl">Tribunal</label><input id="edTribunal"/></div>
       <div class="field"><label class="lbl">Advogado</label><input id="edAdvogado"/></div>
       <div class="field"><label class="lbl">Escritório</label><input id="edEscritorio"/></div>
+      <div class="field"><label class="lbl">Responsável (dono)</label><input id="edResponsavel" placeholder="login ou nome do usuário dono"/></div>
       <div class="field"><label class="lbl">Situação</label><input id="edSituacao" placeholder="EM ANDAMENTO"/></div>
       <div class="field"><label class="lbl">Status manual</label>
         <select id="edStatusManual"><option value="Automatico">Automático</option><option value="Caso Crítico">Caso Crítico</option><option value="Encerrado">Encerrado</option><option value="Arquivado">Arquivado</option></select>
