@@ -1,106 +1,69 @@
-# OFFLINE-LEXISPREDICT
+<p align="center">
+  <img src="docs/assets/lexis-promo-offline.svg" alt="LexisPredict Offline — EXE Windows" width="100%" />
+</p>
 
-App **Windows (Electron)** da carteira Lexis: processos, fila, scanner DataJud+DJEN, Plano B (planilha) e Assistente IA (MiniMax / Ollama).
+<p align="center">
+  <strong>LexisPredict Offline</strong><br/>
+  <em>EXE Windows do gabinete. Já abre. Paridade com o web: coming soon.</em>
+</p>
 
-> **Não é o LexisPredict web.** O produto online completo está em [W1CAPITAL/LexisPredict](https://github.com/W1CAPITAL/LexisPredict).  
-> Este repo é o **EXE + fonte do shell offline** (versão **5.1.8**).
+<p align="center">
+  <img alt="License" src="https://img.shields.io/badge/license-Proprietary-0B1220?style=for-the-badge&labelColor=111827" />
+  <img alt="Windows" src="https://img.shields.io/badge/Windows-EXE-0078D4?style=for-the-badge&logo=windows&logoColor=white" />
+  <img alt="Electron" src="https://img.shields.io/badge/Electron-desktop-47848F?style=for-the-badge&logo=electron&logoColor=white" />
+  <img alt="Ready" src="https://img.shields.io/badge/exe-v5.1.8_pronto-5EEAD4?style=for-the-badge&labelColor=0B1220" />
+  <img alt="Soon" src="https://img.shields.io/badge/paridade_web-coming_soon-F59E0B?style=for-the-badge&labelColor=0B1220" />
+</p>
 
-## Limite GitHub (25 MB)
+<p align="center">
+  Irmão web: <a href="https://github.com/daviconcentrix-debug/LexisPredict">LexisPredict</a>
+  · Este repo: <a href="https://github.com/W1CAPITAL/OFFLINE-LEXISPREDICT">OFFLINE-LEXISPREDICT</a>
+</p>
 
-Arquivos grandes do instalador estão em **partes** em `dist-parts/` (cada uma &lt; 20 MB):
+---
 
-| Arquivo | ~tamanho |
-|---------|----------|
-| `LexisOffline_parte_00.zip` … `_05.zip` | 9–19 MB |
-
-Não versionamos o EXE monólito (~100 MB) nem chaves de API.
-
-## Estrutura
-
-```
-OFFLINE-LEXISPREDICT/
-├── desktop/                 # FONTE (versionável)
-│   ├── main.js              # Electron main: DataJud, DJEN, Sheets CSV, IA
-│   ├── preload.js
-│   ├── offline.html         # UI completa
-│   └── package.json
-├── scripts/
-│   ├── 0b-JUNTAR-PARTES.bat
-│   ├── 1-APLICAR-RECURSOS-NO-EXE.bat
-│   └── 2-INSTALAR-OLLAMA-IA.bat
-├── dist-parts/              # Partes do pacote com EXE
-├── secrets/
-│   └── lexis-secrets.example.json
-├── docs/
-└── README.md
-```
-
-## Instalação rápida (Windows)
-
-1. Clone o repo:
-   ```bash
-   git clone https://github.com/W1CAPITAL/OFFLINE-LEXISPREDICT.git
-   cd OFFLINE-LEXISPREDICT
-   ```
-2. Junte o instalador:
-   - Execute `scripts\0b-JUNTAR-PARTES.bat`
-   - Extraia `dist-parts\_rebuilt.zip` (gera pasta com `Lexis Gabinete.exe`)
-3. Aplique a fonte atual:
-   - Execute `scripts\1-APLICAR-RECURSOS-NO-EXE.bat`
-   - Informe a pasta do EXE se pedir
-4. (Opcional) MiniMax:
-   ```bash
-   copy secrets\lexis-secrets.example.json secrets\lexis-secrets.json
-   ```
-   Edite a chave `sk-api-...` e rode o bat de aplicar de novo.
-5. Abra **Lexis Gabinete.exe** → deve aparecer **v5.1.8**.
-6. **Plano B** → cole o link da planilha Google → **Carregar planilha**.
-
-### Colunas da planilha W1
-
-| Coluna | Campo no app |
-|--------|----------------|
-| **M** RETORNO | último retorno |
-| **N** PRÓXIMO RETORNO | próximo prazo |
-
-## Desenvolvimento
-
-- Edite `desktop/offline.html` e `desktop/main.js`.
-- Rode `scripts\1-APLICAR-RECURSOS-NO-EXE.bat` para injetar no EXE empacotado.
-- Valide JS: `node --check desktop/main.js` (e extraia o `<script>` do HTML se necessário).
-
-## O que funciona / o que não
+## O que já funciona
 
 | Módulo | Status |
-|--------|--------|
-| Carteira local + KPIs + fila | OK |
-| Import CSV / Google Sheets (export CSV) | OK (leitura) |
-| Scanner DataJud + DJEN + aplica prazo | OK (com internet) |
-| MiniMax Cloud / Ollama | OK se configurado |
-| Escrita automática no Google Sheets | Não (exporte CSV) |
-| CRM / cumprimento / Supabase do Lexis web | Não neste shell |
+|--|--|
+| Login e senha | Pronto |
+| Carteira local + KPIs + fila | Pronto |
+| Planilha / CSV (colunas **M** retorno, **N** próximo) | Pronto |
+| Scanner DataJud + DJEN | Pronto (com internet) |
+| Atender sem roubar `created_by` | Parcial (5.1.8) |
+| MiniMax / Ollama | Se configurado |
+| Ranking = log do web | Coming soon |
+| CRM + encerrados a revisar | Coming soon |
+| Sync Supabase sem duplicar CNJ | Coming soon |
+| Escrita 2 vias estável na planilha | Coming soon (hoje: webhook ou CSV) |
 
-## Relação com LexisPredict
+---
 
-Objetivo de longo prazo: **uma codebase** (Next) + casca Electron.  
-Hoje o offline é um **shell operacional** com port parcial (CSV M/N, DJEN, DataJud). Ver `docs/ARQUITETURA.md`.
+## Instalar o EXE
+
+```bat
+git clone https://github.com/W1CAPITAL/OFFLINE-LEXISPREDICT.git
+cd OFFLINE-LEXISPREDICT
+scripts\0b-JUNTAR-PARTES.bat
+scripts\1-APLICAR-RECURSOS-NO-EXE.bat
+```
+
+Abra **Lexis Gabinete.exe** → deve mostrar **v5.1.8**.  
+**Plano B** → cole o CSV / link da planilha → **Carregar planilha**.
+
+Não versionamos o monólito (~100 MB) nem chaves de API.
+
+---
+
+## Relação com o Lexis comum (web)
+
+O web é a operação multi-usuário (Vercel + Supabase).  
+O Offline é o notebook quando a nuvem não pode ser o ponto único.
+
+Coming soon = **o mesmo gabinete nos dois**, não um segundo produto.
+
+---
 
 ## Licença
 
-Uso interno W1 Capital / Lexis. Não redistribuir chaves de API.
-
-
-## Escrita na planilha (v5.1.8)
-
-1. Siga `docs/SHEETS_WRITE_APPS_SCRIPT.md` (deploy Apps Script).
-2. No app: **Plano B** → cole a URL `/exec` em **Webhook Apps Script**.
-3. Após scan/edição: **Enviar retornos → planilha (M/N)**.
-
-Sem o webhook, use **Exportar CSV** (fallback manual).
-
-
-### v5.1.8
-- Versão única HTML/preload/README
-- Fila de scan **persistente** no `lexis-offline-db.json`
-- Atendimento: `created_by` preservado; grava `atendido_por` + `atendido_em`
-- Campos mínimos de scan alinhados ao web (heurística)
+Uso interno W1 Capital / Lexis. Não redistribuir chaves.
