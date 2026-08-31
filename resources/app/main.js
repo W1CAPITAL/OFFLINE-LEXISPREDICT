@@ -1,6 +1,6 @@
 /**
- * Lexis Gabinete v6.2
- * Offline-first + DataJud/DJEN + DB em arquivo + Sync Google Sheets (2 vias + login por usuário)
+ * Lexis Gabinete v6.0
+ * Offline-first + DataJud/DJEN + DB em arquivo + Sync Google Sheets (2 vias)
  */
 const { app, BrowserWindow, Menu, dialog, ipcMain, shell, session, nativeTheme } = require("electron");
 const path = require("path");
@@ -47,6 +47,13 @@ function isAppsScriptHost(u) {
   return s.indexOf("script.google.com") > -1 || s.indexOf("script.googleusercontent.com") > -1;
 }
 
+/**
+ * Apps Script Web App:
+ * 1) POST /exec com body → Google executa doPost
+ * 2) 302 para script.googleusercontent.com/...
+ * 3) Cliente deve fazer GET nesse URL para ler o JSON
+ * POST de novo no usercontent = HTTP 405 + HTML (ppConfig)
+ */
 function fetchBuffer(url, opts, maxRedirects) {
   if (maxRedirects === undefined) maxRedirects = 10;
   opts = opts || {};
@@ -56,7 +63,7 @@ function fetchBuffer(url, opts, maxRedirects) {
     try { u = new URL(url); } catch (e) { return reject(new Error("URL inválida")); }
     const hdrs = Object.assign({}, opts.headers || {});
     const method = opts.method || "GET";
-    if (opts.body != null && hdrs["Content-Length"] === undefined) {
+    if (opts.body != null && hdrs["Content-Length"] === undefined && method !== "GET" && method !== "HEAD") {
       hdrs["Content-Length"] = Buffer.byteLength(String(opts.body));
     }
     const req = lib.request({
@@ -73,14 +80,22 @@ function fetchBuffer(url, opts, maxRedirects) {
           ? res.headers.location
           : new URL(res.headers.location, url).href;
         const nextL = String(next).toLowerCase();
-        // drain
         res.resume();
         if (nextL.indexOf("accounts.google") > -1) {
           return resolve({ status: code, body: Buffer.from(""), headers: res.headers, authRedirect: true });
         }
-        // CRÍTICO: Apps Script 302 → usercontent: NUNCA converter POST em GET
-        if (isAppsScriptHost(url) || isAppsScriptHost(next)) {
-          return resolve(fetchBuffer(next, opts, maxRedirects - 1));
+        // Apps Script: após POST, o 302 para usercontent deve ser GET (corpo já processado)
+        if (isAppsScriptHost(next) && (method === "POST" || method === "PUT")) {
+          const fol = {
+            method: "GET",
+            body: null,
+            headers: {
+              "User-Agent": hdrs["User-Agent"] || "LexisOffline/6.3",
+              Accept: hdrs["Accept"] || "application/json,text/plain,*/*",
+            },
+            timeout: opts.timeout,
+          };
+          return resolve(fetchBuffer(next, fol, maxRedirects - 1));
         }
         if ((method === "POST" || method === "PUT") && (code === 301 || code === 302 || code === 303)) {
           const fol = Object.assign({}, opts, { method: "GET", body: null, headers: Object.assign({}, opts.headers || {}) });
@@ -106,7 +121,7 @@ function fetchBuffer(url, opts, maxRedirects) {
     });
     req.on("error", reject);
     req.on("timeout", () => { req.destroy(); reject(new Error("Timeout")); });
-    if (opts.body != null) req.write(String(opts.body));
+    if (opts.body != null && method !== "GET" && method !== "HEAD") req.write(String(opts.body));
     req.end();
   });
 }
@@ -160,30 +175,6 @@ function maskCnj(digits) {
   return d.slice(0, 7) + "-" + d.slice(7, 9) + "." + d.slice(9, 13) + "." + d.slice(13, 14) + "." + d.slice(14, 16) + "." + d.slice(16);
 }
 
-ipcMain.handle("lexis-print-pdf", async (_e, opts) => {
-  try {
-    const html = (opts && opts.html) || "";
-    if (!html) return { ok: false, error: "HTML vazio" };
-    const name = (opts && opts.name) || "dossie-operacional.pdf";
-    const { filePath, canceled } = await dialog.showSaveDialog({
-      defaultPath: name,
-      filters: [{ name: "PDF", extensions: ["pdf"] }],
-    });
-    if (canceled || !filePath) return { ok: false, canceled: true };
-    const win = new BrowserWindow({
-      show: false, width: 900, height: 1200,
-      webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
-    });
-    await win.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(html));
-    const pdf = await win.webContents.printToPDF({ printBackground: true, pageSize: "A4", landscape: false });
-    fs.writeFileSync(filePath, pdf);
-    if (!win.isDestroyed()) win.destroy();
-    return { ok: true, path: filePath };
-  } catch (e) {
-    return { ok: false, error: e.message };
-  }
-});
-
 ipcMain.handle("lexis-fetch-text", async (_e, url) => {
   const candidates = sheetsCsvCandidates(url);
   let lastErr = "";
@@ -217,12 +208,14 @@ ipcMain.handle("lexis-fetch-json", async (_e, url, opts) => {
     if (/docs\.google\.com\/spreadsheets/i.test(finalUrl) || /drive\.google\.com/i.test(finalUrl)) {
       return {
         ok: false, http: 405, json: null,
-        error: "Campo webhook está com link da PLANILHA. Use a URL do Apps Script que termina em /exec",
+        error: "Campo webhook com link da PLANILHA. Use script.google.com/.../exec",
         raw: "",
       };
     }
     if (/^https:\/\/script\.google\.com\/macros\/s\//i.test(finalUrl)) {
-      finalUrl = finalUrl.replace(/\/dev(\b|$)/, "/exec").replace(/\/exec\/?(\?|$)/, "/exec$1");
+      finalUrl = finalUrl.replace(/\/dev(\b|$)/, "/exec");
+      // preserva query string
+      finalUrl = finalUrl.replace(/\/exec\/?(?=\?|$)/, "/exec");
     } else if (finalUrl && !/script\.google\.(com|usercontent\.com)/i.test(finalUrl)) {
       return {
         ok: false, http: 0, json: null,
@@ -234,7 +227,7 @@ ipcMain.handle("lexis-fetch-json", async (_e, url, opts) => {
     const r = await fetchBuffer(finalUrl, {
       method,
       headers: Object.assign(
-        { "User-Agent": "LexisOffline/6.2", Accept: "application/json,text/plain,*/*" },
+        { "User-Agent": "LexisOffline/6.3", Accept: "application/json,text/plain,*/*" },
         (opts && opts.headers) || {}
       ),
       body: opts && opts.body != null ? opts.body : undefined,
@@ -244,7 +237,7 @@ ipcMain.handle("lexis-fetch-json", async (_e, url, opts) => {
     let json = null;
     try { json = JSON.parse(text); } catch (_) {}
     if (r.authRedirect) {
-      return { ok: false, http: r.status, auth: true, json: null, raw: "Login Google — implantação com acesso Qualquer pessoa." };
+      return { ok: false, http: r.status, auth: true, json: null, raw: "Login Google — acesso Qualquer pessoa na implantação." };
     }
     return {
       ok: r.status >= 200 && r.status < 300 && !!json,
@@ -662,7 +655,8 @@ ipcMain.handle("lexis-sheets-push", async (_e, payload) => {
       };
     });
     const body = JSON.stringify({
-      action: "upsertRetornos",
+      token: (payload && payload.token) || "w1-fase1-2026",
+      action: "upsert_processos",
       sheetGid: (payload && payload.gid) || null,
       rows: batch,
     });
@@ -727,7 +721,7 @@ function createMainWindow() {
   const ses = session.fromPartition(PARTITION, { cache: true });
   mainWindow = new BrowserWindow({
     width: 1480, height: 920, minWidth: 1100, minHeight: 700, show: false,
-    backgroundColor: "#0f172a", title: "Lexis Gabinete 6.2",
+    backgroundColor: "#0f172a", title: "Lexis Gabinete 6.0",
     webPreferences: {
       preload: appPath("preload.js"),
       contextIsolation: true,
@@ -766,3 +760,286 @@ app.whenReady().then(() => {
   createMainWindow();
 });
 app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });
+/**
+ * Cole no final de desktop/main.js (antes de createMainWindow se preferir).
+ * IPC: login, list/create users local + proxy webhook planilha.
+ */
+const crypto = require("crypto");
+
+function sha256hex(s) {
+  return crypto.createHash("sha256").update(String(s || ""), "utf8").digest("hex");
+}
+
+function normalizePerfil(p) {
+  const s = String(p || "operador").toLowerCase();
+  if (/super\s*admin|superadmin/.test(s)) return "superadmin";
+  if (/supervis/.test(s)) return "supervisor";
+  if (/admin/.test(s)) return "administrador";
+  if (/assist/.test(s)) return "assistente";
+  return "operador";
+}
+
+function ensureUsersInData(data) {
+  if (!data || typeof data !== "object") data = {};
+  if (!Array.isArray(data.usuarios)) data.usuarios = [];
+  if (!data.session) data.session = null;
+  if (!data.empresa) {
+    data.empresa = {
+      id: "d37fd4bb-1c71-4dca-b97e-292355918d39",
+      nome: "W1 Capital",
+    };
+  }
+  return data;
+}
+
+async function loadDataRaw() {
+  const p = dbPath();
+  if (!fs.existsSync(p)) return ensureUsersInData({});
+  try {
+    return ensureUsersInData(JSON.parse(fs.readFileSync(p, "utf8")));
+  } catch {
+    return ensureUsersInData({});
+  }
+}
+
+async function saveDataRaw(data) {
+  const p = dbPath();
+  fs.mkdirSync(path.dirname(p), { recursive: true });
+  fs.writeFileSync(p, JSON.stringify(ensureUsersInData(data), null, 1), "utf8");
+  return p;
+}
+
+ipcMain.handle("lexis-auth-login", async (_e, payload) => {
+  const login = String(payload?.login || payload?.email || "").trim().toLowerCase();
+  const senha = String(payload?.senha || payload?.password || "");
+  if (!login || !senha) return { ok: false, error: "login e senha obrigatórios" };
+
+  // 1) tenta webhook planilha
+  const webhook = payload?.webhookUrl || "";
+  const token = payload?.token || "w1-fase1-2026";
+  if (webhook) {
+    try {
+      const r = await fetchBuffer(webhook, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, action: "login", login, senha }),
+      });
+      const j = JSON.parse(r.body ? r.body.toString("utf8") : "{}");
+      if (j && j.ok && j.user) {
+        const data = await loadDataRaw();
+        data.session = { ...j.user, at: new Date().toISOString() };
+        // espelha usuário no JSON local
+        const uid = j.user.auth_user_id || j.user.id;
+        const ix = data.usuarios.findIndex(
+          (u) => String(u.login).toLowerCase() === login || u.auth_user_id === uid
+        );
+        const row = {
+          login: j.user.login,
+          nome: j.user.nome,
+          senha: sha256hex(senha),
+          perfil: normalizePerfil(j.user.perfil),
+          escritorio: j.user.escritorio || "",
+          ativo: "sim",
+          email: j.user.email || login,
+          auth_user_id: uid,
+          id: j.user.id || uid,
+        };
+        if (ix >= 0) data.usuarios[ix] = { ...data.usuarios[ix], ...row };
+        else data.usuarios.push(row);
+        await saveDataRaw(data);
+        return { ok: true, user: data.session, source: "sheets" };
+      }
+    } catch (e) {
+      /* cai no local */
+    }
+  }
+
+  // 2) local
+  const data = await loadDataRaw();
+  const hash = sha256hex(senha);
+  const u = data.usuarios.find((x) => {
+    const L = String(x.login || "").toLowerCase();
+    const E = String(x.email || "").toLowerCase();
+    const ativo = String(x.ativo || "sim").toLowerCase();
+    if (ativo === "nao" || ativo === "false") return false;
+    return (L === login || E === login) && String(x.senha || "").toLowerCase() === hash;
+  });
+  if (!u) return { ok: false, error: "usuário ou senha inválidos (local e planilha)" };
+  data.session = {
+    login: u.login,
+    nome: u.nome,
+    perfil: normalizePerfil(u.perfil),
+    escritorio: u.escritorio || "",
+    email: u.email || u.login,
+    auth_user_id: u.auth_user_id || u.id,
+    id: u.id || u.auth_user_id,
+    at: new Date().toISOString(),
+  };
+  await saveDataRaw(data);
+  return { ok: true, user: data.session, source: "local" };
+});
+
+ipcMain.handle("lexis-auth-session", async () => {
+  const data = await loadDataRaw();
+  return { ok: true, session: data.session || null };
+});
+
+ipcMain.handle("lexis-auth-logout", async () => {
+  const data = await loadDataRaw();
+  data.session = null;
+  await saveDataRaw(data);
+  return { ok: true };
+});
+
+ipcMain.handle("lexis-users-list", async (_e, payload) => {
+  const data = await loadDataRaw();
+  const perfil = normalizePerfil(data.session?.perfil);
+  if (!/superadmin|supervisor/.test(perfil)) {
+    return { ok: false, error: "só superadmin/supervisor" };
+  }
+  const webhook = payload?.webhookUrl || "";
+  const token = payload?.token || "w1-fase1-2026";
+  if (webhook) {
+    try {
+      const r = await fetchBuffer(webhook, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, action: "list_users" }),
+      });
+      const j = JSON.parse(r.body ? r.body.toString("utf8") : "{}");
+      if (j?.ok && Array.isArray(j.users)) return { ok: true, users: j.users, source: "sheets" };
+    } catch (_) {}
+  }
+  return {
+    ok: true,
+    users: data.usuarios.map((u) => ({
+      login: u.login,
+      nome: u.nome,
+      perfil: u.perfil,
+      escritorio: u.escritorio,
+      ativo: u.ativo,
+      email: u.email,
+      auth_user_id: u.auth_user_id,
+    })),
+    source: "local",
+  };
+});
+
+ipcMain.handle("lexis-users-create", async (_e, payload) => {
+  const data = await loadDataRaw();
+  const perfilSess = normalizePerfil(data.session?.perfil);
+  if (perfilSess !== "superadmin" && perfilSess !== "supervisor") {
+    return { ok: false, error: "sem permissão" };
+  }
+  const login = String(payload?.login || "").trim().toLowerCase();
+  const senha = String(payload?.senha || "");
+  const nome = String(payload?.nome || login);
+  const perfil = normalizePerfil(payload?.perfil);
+  if (!login || !senha) return { ok: false, error: "login/senha" };
+
+  const webhook = payload?.webhookUrl || "";
+  const token = payload?.token || "w1-fase1-2026";
+  if (webhook) {
+    try {
+      const r = await fetchBuffer(webhook, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token,
+          action: "create_user",
+          login,
+          nome,
+          senha,
+          perfil,
+          escritorio: payload?.escritorio || "",
+          email: payload?.email || login,
+        }),
+      });
+      const j = JSON.parse(r.body ? r.body.toString("utf8") : "{}");
+      if (!j?.ok) return { ok: false, error: j?.error || "falha sheets" };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  }
+
+  if (data.usuarios.some((u) => String(u.login).toLowerCase() === login)) {
+    return { ok: false, error: "login já existe no local" };
+  }
+  const id = crypto.randomUUID();
+  data.usuarios.push({
+    login,
+    nome,
+    senha: sha256hex(senha),
+    perfil,
+    escritorio: payload?.escritorio || "",
+    ativo: "sim",
+    email: (payload?.email || login).toLowerCase(),
+    auth_user_id: id,
+    id,
+  });
+  await saveDataRaw(data);
+  return { ok: true };
+});
+
+ipcMain.handle("lexis-auth-bootstrap-superadmin", async (_e, payload) => {
+  const data = await loadDataRaw();
+  if (data.usuarios.length > 0) {
+    return { ok: false, error: "já existem usuários — use login" };
+  }
+  const login = String(payload?.login || "admin").trim().toLowerCase();
+  const senha = String(payload?.senha || "admin123");
+  const id = crypto.randomUUID();
+  data.usuarios.push({
+    login,
+    nome: payload?.nome || "Administrador",
+    senha: sha256hex(senha),
+    perfil: "superadmin",
+    escritorio: payload?.escritorio || "Matriz",
+    ativo: "sim",
+    email: (payload?.email || login).toLowerCase(),
+    auth_user_id: id,
+    id,
+  });
+  data.session = {
+    login,
+    nome: data.usuarios[0].nome,
+    perfil: "superadmin",
+    email: data.usuarios[0].email,
+    auth_user_id: id,
+    id,
+    at: new Date().toISOString(),
+  };
+  await saveDataRaw(data);
+  return { ok: true, user: data.session };
+});
+
+ipcMain.handle("lexis-user-set-password", async (_e, payload) => {
+  const data = await loadDataRaw();
+  const perfilSess = normalizePerfil(data.session?.perfil);
+  if (perfilSess !== "superadmin" && perfilSess !== "supervisor") {
+    return { ok: false, error: "sem permissão" };
+  }
+  const login = String(payload?.login || "").trim().toLowerCase();
+  const novaSenha = String(payload?.senha || payload?.password || "");
+  if (!login || !novaSenha) return { ok: false, error: "login e nova senha obrigatórios" };
+  // 1) webhook planilha
+  const webhook = payload?.webhookUrl || "";
+  const token = payload?.token || "w1-fase1-2026";
+  if (webhook) {
+    try {
+      const r = await fetchBuffer(webhook, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, action: "set_password", login, senha: novaSenha }),
+      });
+      const j = JSON.parse(r.body ? r.body.toString("utf8") : "{}");
+      if (j?.ok) return { ok: true, source: "sheets" };
+    } catch (_) {}
+  }
+  // 2) local
+  const u = data.usuarios.find((x) => String(x.login).toLowerCase() === login);
+  if (!u) return { ok: false, error: "usuário não encontrado" };
+  u.senha = sha256hex(novaSenha);
+  await saveDataRaw(data);
+  return { ok: true, source: "local" };
+});

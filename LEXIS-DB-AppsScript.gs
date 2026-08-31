@@ -76,7 +76,7 @@ function sha256_(text) {
 }
 function uuid_() { return Utilities.getUuid(); }
 function norm(s) {
-  return String(s || "").replace(/\s+/g, "").replace(/_/g, "").toLowerCase()
+  return String(s || "").replace(/[\s._-]+/g, "").toLowerCase()
     .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 function normPerfil_(p) {
@@ -93,12 +93,28 @@ function out_(obj) {
 
 function doGet(e) {
   // GET no /exec deve devolver JSON (teste no navegador)
+  try {
+    var p = (e && e.parameter) || {};
+    if (String(p.action || "") === "ping" || p.ping === "1" || p.ping === "true") {
+      if (p.token && String(p.token) !== String(TOKEN)) {
+        return out_({ ok: false, error: "token invalido" });
+      }
+      return out_({ ok: true, pong: true, v: "6.3", via: "GET" });
+    }
+    // hash: gera SHA-256 de uma senha (para testar)
+    if (String(p.action || "") === "hash" && p.senha) {
+      if (p.token && String(p.token) !== String(TOKEN)) {
+        return out_({ ok: false, error: "token invalido" });
+      }
+      return out_({ ok: true, senha: p.senha, hash: sha256_(p.senha) });
+    }
+  } catch (err) {}
   return out_({
     ok: true,
-    pong: true,
     app: "lexis-gabinete-sync",
+    v: "6.3",
     ts: new Date().toISOString(),
-    hint: "POST com {token, ping:true} ou {token, rows:[...]}"
+    hint: "GET ?action=ping&token=TOKEN | ?action=hash&senha=X&token=TOKEN"
   });
 }
 
@@ -129,6 +145,8 @@ function doPost(e) {
     }
     if (action === "set_ativo") return out_(setUserAtivo_(body.login, body.ativo));
     if (action === "set_perfil") return out_(setUserPerfil_(body.login, body.perfil));
+    if (action === "set_password") return out_(setUserPassword_(body.login, body.senha || body.password));
+    if (action === "hash") return out_({ ok: true, hash: sha256_(body.senha || "") });
     if (action === "upsert_processos" || action === "upsertretornos" || body.rows) {
       return out_(upsertProcessos_(body.rows || []));
     }
@@ -154,15 +172,15 @@ function headerMap_(sh) {
   return { headers: headers, map: map };
 }
 function criarUsuario(login, nome, senha, perfil, escritorio, email) {
-  login = String(login || "").trim().toLowerCase();
+  login = norm(login);
   if (!login || !senha) throw new Error("login e senha obrigatórios");
   var sh = getUsersSheet_();
   var hm = headerMap_(sh);
   var data = sh.getDataRange().getValues();
   for (var r = 1; r < data.length; r++) {
-    var rowLogin = String(data[r][hm.map.login] || "").trim().toLowerCase();
-    var rowEmail = String(data[r][hm.map.email] || "").trim().toLowerCase();
-    if (rowLogin === login || (email && rowEmail === String(email).toLowerCase())) {
+    var rowLogin = norm(data[r][hm.map.login]);
+    var rowEmail = norm(data[r][hm.map.email]);
+    if (rowLogin === login || (email && rowEmail === norm(email))) {
       throw new Error("login/email já existe");
     }
   }
@@ -228,12 +246,14 @@ function authLogin_(loginOrEmail, senha) {
   var sh = getUsersSheet_();
   var hm = headerMap_(sh);
   var data = sh.getDataRange().getValues();
-  var key = String(loginOrEmail || "").trim().toLowerCase();
+  var key = norm(loginOrEmail);
   var hash = sha256_(senha);
   for (var r = 1; r < data.length; r++) {
-    var login = String(data[r][hm.map.login] || "").trim().toLowerCase();
-    var email = String(data[r][hm.map.email] || "").trim().toLowerCase();
-    var ativo = String(data[r][hm.map.ativo] || "sim").toLowerCase();
+    var login = norm(data[r][hm.map.login]);
+    var email = norm(data[r][hm.map.email]);
+    var rawLogin = String(data[r][hm.map.login] || "").trim();
+    var rawEmail = String(data[r][hm.map.email] || "").trim();
+    var ativo = norm(data[r][hm.map.ativo] || "sim");
     if (ativo === "nao" || ativo === "false") continue;
     if (login === key || email === key) {
       if (String(data[r][hm.map.senha] || "").toLowerCase() !== hash) {
@@ -242,11 +262,11 @@ function authLogin_(loginOrEmail, senha) {
       return {
         ok: true,
         user: {
-          login: login,
+          login: rawLogin || login,
           nome: String(data[r][hm.map.nome] || ""),
           perfil: normPerfil_(data[r][hm.map.perfil]),
           escritorio: String(data[r][hm.map.escritorio] || ""),
-          email: email,
+          email: rawEmail || email,
           auth_user_id: String(data[r][hm.map.auth_user_id] || data[r][hm.map.id] || ""),
           id: String(data[r][hm.map.id] || "")
         }
@@ -277,6 +297,21 @@ function setUserPerfil_(login, perfil) {
     if (String(data[r][hm.map.login] || "").trim().toLowerCase() === login) {
       sh.getRange(r + 1, hm.map.perfil + 1).setValue(normPerfil_(perfil));
       return { ok: true, login: login, perfil: normPerfil_(perfil) };
+    }
+  }
+  return { ok: false, error: "não encontrado" };
+}
+function setUserPassword_(login, novaSenha) {
+  login = norm(login);
+  if (!login || !novaSenha) return { ok: false, error: "login e nova senha obrigatórios" };
+  if (String(novaSenha).length < 4) return { ok: false, error: "senha precisa de 4+ caracteres" };
+  var sh = getUsersSheet_();
+  var hm = headerMap_(sh);
+  var data = sh.getDataRange().getValues();
+  for (var r = 1; r < data.length; r++) {
+    if (norm(data[r][hm.map.login]) === login) {
+      sh.getRange(r + 1, hm.map.senha + 1).setValue(sha256_(novaSenha));
+      return { ok: true, login: login };
     }
   }
   return { ok: false, error: "não encontrado" };

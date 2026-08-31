@@ -63,12 +63,19 @@ function doGet(e) {
   try {
     var p = (e && e.parameter) || {};
     if (String(p.action || "") === "ping" || p.ping === "1" || p.ping === "true") {
-      if (p.token && String(p.token) !== String(TOKEN)) return out({ ok: false, error: "token invalido" });
+      if (p.token && String(p.token) !== String(TOKEN)) {
+        return out({ ok: false, error: "token invalido" });
+      }
       return out({ ok: true, pong: true, v: "6.3", via: "GET" });
     }
   } catch (err) {}
-  return out({ ok: true, app: "lexis-gabinete-sync", v: "6.3", ts: new Date().toISOString(), hint: "use POST action=ping ou GET ?action=ping&token=" });
-});
+  return out({
+    ok: true,
+    app: "lexis-gabinete-sync",
+    v: "6.3",
+    ts: new Date().toISOString(),
+    hint: "GET ?action=ping&token=TOKEN"
+  });
 }
 
 function onOpen() {

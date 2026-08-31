@@ -754,67 +754,66 @@
     try {
       if ($("cfgWebhook")) cfg.webhook = $("cfgWebhook").value.trim();
       if ($("cfgToken")) cfg.token = $("cfgToken").value.trim();
-      if ($("cfgOper")) cfg.oper = $("cfgOper").value.trim();
     } catch (e1) {}
     if (!cfg.token) cfg.token = "w1-fase1-2026";
     st.className = "hint";
-    st.textContent = "Testando webhook…";
+    st.textContent = "Testando…";
     var wh = String(cfg.webhook || "").trim().replace(/\/dev(\b|$)/, "/exec");
     if (!wh) {
       st.className = "hint err-msg";
-      st.textContent = "Cole a URL /exec do Apps Script (não o link da planilha).";
+      st.textContent = "Cole a URL /exec do Apps Script.";
       return;
     }
-    if (/docs\.google\.com\/spreadsheets/i.test(wh)) {
+    if (/docs\.google\.com/i.test(wh)) {
       st.className = "hint err-msg";
-      st.textContent = "Isso é link da PLANILHA. Webhook = script.google.com/.../exec";
+      st.textContent = "Isso é a planilha. Webhook = script.google.com/.../exec";
       return;
     }
     cfg.webhook = wh.replace(/\/exec\/?\s*$/, "/exec");
-    try { localStorage.setItem("lexis_g_webhook", cfg.webhook); localStorage.setItem("lexis_g_token", cfg.token); } catch (e2) {}
+    try {
+      localStorage.setItem("lexis_g_webhook", cfg.webhook);
+      localStorage.setItem("lexis_g_token", cfg.token);
+    } catch (e2) {}
     if (!window.lexisOffline || !window.lexisOffline.fetchJson) {
       st.className = "hint err-msg";
-      st.textContent = "Sem IPC Electron (reabra o app).";
+      st.textContent = "Sem IPC — reabra o EXE.";
       return;
     }
-    // 1) GET ?action=ping — não depende de redirect POST
-    var getUrl = cfg.webhook + (cfg.webhook.indexOf("?") >= 0 ? "&" : "?") +
-      "action=ping&token=" + encodeURIComponent(cfg.token);
+    var getUrl = cfg.webhook + "?action=ping&token=" + encodeURIComponent(cfg.token);
     window.lexisOffline.fetchJson(getUrl, { method: "GET" }).then(function (r) {
       if (r && r.json && r.json.pong === true) {
         st.className = "hint ok-msg";
-        st.textContent = "Webhook OK ✓ (GET ping) — escrita via POST no sync.";
+        st.textContent = "Webhook OK ✓";
         if (typeof toast === "function") toast("Webhook conectado", "ok-msg");
-        return null;
+        return;
       }
-      // 2) POST action=ping
+      // POST (doPost ping) — redirect correto = GET no usercontent
       return window.lexisOffline.fetchJson(cfg.webhook, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token: cfg.token, action: "ping", ping: true })
+      }).then(function (r2) {
+        if (r2 && r2.json && r2.json.pong === true) {
+          st.className = "hint ok-msg";
+          st.textContent = "Webhook OK ✓ (POST)";
+          if (typeof toast === "function") toast("Webhook conectado", "ok-msg");
+          return;
+        }
+        if (r2 && r2.json && r2.json.ok && r2.json.app && !r2.json.pong) {
+          st.className = "hint err-msg";
+          st.textContent = "Script no ar, mas SEM pong. Apps Script: cole o .gs novo → Implantar → Nova versão.";
+          return;
+        }
+        if (r && r.json && r.json.ok && r.json.app && !r.json.pong) {
+          st.className = "hint err-msg";
+          st.textContent = "Script antigo no /exec. Implantar → Nova versão com doGet que devolve pong.";
+          return;
+        }
+        var err = (r2 && (r2.error || (r2.json && r2.json.error))) || (r && r.error) || "";
+        var raw = String((r2 && r2.raw) || (r && r.raw) || "").replace(/\s+/g, " ").slice(0, 80);
+        st.className = "hint err-msg";
+        st.textContent = err || ("HTTP " + ((r2 && r2.http) || (r && r.http)) + " — " + raw);
       });
-    }).then(function (r) {
-      if (r === null || r === undefined) return;
-      if (r && r.json && r.json.pong === true) {
-        st.className = "hint ok-msg";
-        st.textContent = "Webhook OK ✓ (POST ping)";
-        if (typeof toast === "function") toast("Webhook conectado", "ok-msg");
-        return;
-      }
-      // 3) Resposta doGet sem pong = script no ar, mas versão antiga OU POST virou GET
-      if (r && r.json && r.json.ok === true && r.json.app) {
-        st.className = "hint err-msg";
-        st.textContent = "Script no ar, mas sem pong. No Apps Script: cole LEXIS-SYNC atualizado, Implantar → Nova versão. Depois teste de novo.";
-        return;
-      }
-      if (r && r.json && r.json.error) {
-        st.className = "hint err-msg";
-        st.textContent = "Script: " + r.json.error;
-        return;
-      }
-      st.className = "hint err-msg";
-      var raw = String((r && (r.raw || r.text)) || "").slice(0, 100);
-      st.textContent = "HTTP " + (r && r.http) + " — " + raw;
     }).catch(function (e) {
       st.className = "hint err-msg";
       st.textContent = "Rede: " + (e && e.message ? e.message : e);

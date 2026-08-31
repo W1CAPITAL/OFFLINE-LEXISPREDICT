@@ -14,39 +14,23 @@
   var lastDiag = null;
   var editId = null;
 
-  var LS = { url: "lexis_g_sheets_url", web: "lexis_g_webhook", tok: "lexis_g_token", oper: "lexis_g_oper", theme: "lexis_g_theme", dbg: "lexis_sync_debug", sess: "lexis_g_session" };
+  var LS = { url: "lexis_g_sheets_url", web: "lexis_g_webhook", tok: "lexis_g_token", oper: "lexis_g_oper", theme: "lexis_g_theme" };
   var cfg = { url: "", webhook: "", token: "", oper: "" };
-  var sess = null;
-  var localMode = false;
-  var rowsAll = [];
   var lastSync = "";
-  var syncLog = [];
-  function logSync(step, info) {
-    var t = new Date().toLocaleTimeString("pt-BR");
-    syncLog.push({ t: t, step: step, info: info == null ? "" : String(info).slice(0, 300) });
-    if (syncLog.length > 40) syncLog = syncLog.slice(-40);
-    try { localStorage.setItem(LS.dbg, JSON.stringify(syncLog)); } catch (e) {}
-  }
-  function lastSyncLine() {
-    if (!syncLog.length) return "Sem sincronização registrada nesta sessão.";
-    var e = syncLog[syncLog.length - 1];
-    return e.t + " · " + e.step + (e.info ? " — " + e.info : "");
-  }
 
   var TITLES = {
     dashboard: ["Painel da carteira", "Visão geral"],
-    fila: ["Fila de atendimento", "Tarefas críticas"],
+    fila: ["Fila de atendimento", "Prioridades e prazos"],
     casos: ["Meus processos", "Carteira do gabinete"],
     processos: ["Processos da empresa", "Todas as carteiras"],
     parados: ["Processos parados", "Sem andamento há 60+ dias"],
     encerrados: ["Encerrados a revisar", "Filtro humano"],
     import: ["Importar", "Planilha · CSV · arquivo"],
-    agenda: ["Agenda", "Semana · dia · lista"],
+    agenda: ["Agenda", "Próximos retornos · 7 dias"],
     dossie: ["Dossiê operacional", "Relatório da carteira"],
     veredito: ["Veredito", "Consulta DataJud + DJEN"],
     scanner: ["Scanner Omnipresente", "Varredura DataJud + DJEN · logs"],
     notas: ["Notas", "Anotações internas"],
-    equipe: ["Equipe", "Usuários e permissões"],
     config: ["Configurações", "Vínculo com a planilha"]
   };
 
@@ -182,10 +166,9 @@
     if (st === "Arquivado") return '<span class="badge b-arq">Arquivado</span>';
     return '<span class="badge b-arq">' + esc(st) + "</span>";
   }
-  function kpisAll(list) {
-    list = list || rows;
-    var k = { total: list.length, ativos: 0, venc: 0, hoje: 0, aten: 0, seguro: 0, sem: 0, arq: 0, nov: 0, baixa: 0, improc: 0, proc: 0, atendidosHoje: 0 };
-    list.forEach(function (c) {
+  function kpisAll() {
+    var k = { total: rows.length, ativos: 0, venc: 0, hoje: 0, aten: 0, seguro: 0, sem: 0, arq: 0, nov: 0, baixa: 0, improc: 0, proc: 0, atendidosHoje: 0 };
+    rows.forEach(function (c) {
       var st = statusDe(c);
       if (st === "Arquivado") { k.arq++; return; }
       k.ativos++;
@@ -356,7 +339,6 @@
         tribunal: pk(["tribunal", "vara", "comarca", "foro", "tribunaljustica"]),
         advogado: pk(["advogado", "adv", "responsavel"]),
         escritorio: pk(["escritorio", "unidade"]),
-        responsavel: pk(["responsavel", "usuario", "gestor", "donodoprocesso", "dono"]),
         assistente: pk(["assistente", "atendente", "operador"]),
         situacao: situacao,
         ultimoRetorno: ultimoRetorno,
@@ -390,8 +372,7 @@
         cliente: /cliente|nome|parte|autor|consumidor/,
         telefone: /telefone|celular|whatsapp|fone|tel|movel/,
         tribunal: /tribunal|vara|comarca|foro/,
-        advogado: /^advogado$/,
-        responsavel: /^responsavel|^usuario|^gestor|^dono/,
+        advogado: /advogado|responsavel/,
         escritorio: /escritorio|unidade/,
         situacao: /situacao|status|andamento|conclusos|fase/,
         ultimoRetorno: /^(retorno|ultimo|ultimoretorno|retornoanterior|retornofeito)$/,
@@ -455,9 +436,30 @@
   function loadCfg() {
     try {
       cfg.url = localStorage.getItem(LS.url) || "";
-      cfg.webhook = localStorage.getItem(LS.web) || "https://script.google.com/macros/s/AKfycbxro8UqTJUbFLSOFkpR3unyaBFX_FF-lOVc9_KBcJ8GP-fQmpTzAPRh7a1JLN4ECJMu/exec";
+      cfg.webhook = localStorage.getItem(LS.web) || "";
       cfg.token = localStorage.getItem(LS.tok) || "w1-fase1-2026";
       cfg.oper = localStorage.getItem(LS.oper) || "";
+    } catch (e) {}
+  }
+  function readCfgFromInputs(allowEmptyWipe) {
+    // allowEmptyWipe=true só no botão Salvar explícito
+    try {
+      var u = $("cfgUrl") ? $("cfgUrl").value.trim() : "";
+      var w = $("cfgWebhook") ? $("cfgWebhook").value.trim() : "";
+      var tok = $("cfgToken") ? $("cfgToken").value.trim() : "";
+      var op = $("cfgOper") ? $("cfgOper").value.trim() : "";
+      if (w) w = w.replace(/\/dev(\b|$)/, "/exec");
+      if (allowEmptyWipe) {
+        cfg.url = u;
+        cfg.webhook = w;
+        cfg.token = tok || cfg.token || "w1-fase1-2026";
+        cfg.oper = op;
+      } else {
+        if (u) cfg.url = u;
+        if (w) cfg.webhook = w;
+        if (tok) cfg.token = tok;
+        if (op) cfg.oper = op;
+      }
     } catch (e) {}
   }
   function saveCfg() {
@@ -479,7 +481,6 @@
     set("telefone", "Telefone", c.telefone);
     set("tribunal", "Tribunal", c.tribunal);
     set("advogado", "Advogado", c.advogado);
-    set("responsavel", "Responsavel", c.responsavel);
     set("escritorio", "Escritorio", c.escritorio);
     set("situacao", "Situacao", c.situacao);
     set("ultimoRetorno", "Retorno", c.ultimoRetorno);
@@ -490,121 +491,12 @@
   function postRows(body) {
     if (!window.lexisOffline || !window.lexisOffline.fetchJson) return Promise.reject(new Error("sem IPC"));
     if (!cfg.webhook) return Promise.reject(new Error("webhook não configurado"));
-    var payload = body || {};
-    if (sess && sess.token && !payload.sess) payload = Object.assign({}, payload, { sess: sess.token });
     var wh = String(cfg.webhook).trim().replace(/\/dev(\b|$)/, "/exec");
     return window.lexisOffline.fetchJson(wh, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(body)
     });
-  }
-  function api(act, extra) {
-    var body = { token: cfg.token, action: act };
-    for (var k in (extra || {})) body[k] = extra[k];
-    return postRows(body);
-  }
-  function ownMatches(c) {
-    if (!sess) return false;
-    if (!c.responsavel) return false;
-    var r = String(c.responsavel).trim().toLowerCase();
-    var u = String(sess.usuario || "").toLowerCase();
-    var n = String(sess.nome || "").toLowerCase();
-    return r === u || r === n;
-  }
-  function visibleToMe(c) {
-    if (!sess) return true;
-    return ownMatches(c) || !String(c.responsavel || "").trim();
-  }
-  var ROLE_ACCESS = { assistente: 10, atendente: 10, responsavel: 10, supervisor: 20, superadmin: 30 };
-  function roleLevel(p) {
-    p = String(p || "assistente").trim().toLowerCase();
-    if (ROLE_ACCESS[p] !== undefined) return ROLE_ACCESS[p];
-    for (var k in ROLE_ACCESS) if (k.toLowerCase() === p) return ROLE_ACCESS[k];
-    return 10;
-  }
-  function canAdmin() { return sess && roleLevel(sess.perfil) >= 20; }
-  function saveSess() {
-    try { localStorage.setItem(LS.sess, JSON.stringify(sess || {})); } catch (e) {}
-  }
-  function loadSess() {
-    try {
-      var raw = localStorage.getItem(LS.sess);
-      if (raw) { var o = JSON.parse(raw); if (o && o.token) return { token: o.token, nome: o.nome || "", perfil: o.perfil || "", escritorio: o.escritorio || "", usuario: o.usuario || "" }; }
-    } catch (e) {}
-    return null;
-  }
-  function applySessionUI() {
-    var chip = $("userChip"), lo = $("btnLogout"), ne = $("navEquipe");
-    if (sess) {
-      if (chip) chip.textContent = sess.nome + (sess.perfil ? " · " + sess.perfil : "");
-      if (lo) lo.style.display = "";
-      if (ne) ne.style.display = canAdmin() ? "" : "none";
-      if (!canAdmin() && current === "equipe") nav("dashboard");
-      setLoginOverlay(false);
-    } else {
-      if (chip) chip.textContent = "—";
-      if (lo) lo.style.display = "none";
-      if (ne) ne.style.display = "none";
-    }
-  }
-  function setLoginOverlay(show) {
-    var ov = $("loginOverlay");
-    if (!ov) return;
-    if (show) { ov.classList.remove("hidden"); } else { ov.classList.add("hidden"); }
-  }
-  function askLogin() {
-    applySessionUI();
-    setLoginOverlay(true);
-    try { setTimeout(function () { if ($("loginEmail")) $("loginEmail").focus(); }, 60); } catch (e) {}
-  }
-  function doLogin(email, senha) {
-    var msg = $("loginMsg");
-    var btn = $("btnLogin");
-    var btnText = $("btnLoginText");
-    var btnLoader = $("btnLoginLoader");
-    var btnArrow = $("btnLoginArrow");
-    if (msg) { msg.className = "login-msg info"; msg.textContent = "Validando na planilha…"; }
-    if (btn) { btn.disabled = true; if (btnText) btnText.textContent = "Sincronizando..."; if (btnLoader) btnLoader.style.display = "block"; if (btnArrow) btnArrow.style.display = "none"; }
-    return api("auth", { usuario: email, senha: senha }).then(function (r) {
-      if (r && r.ok && r.json && r.json.ok) {
-        sess = { token: r.json.token, nome: r.json.user.nome, perfil: r.json.user.perfil, escritorio: r.json.user.escritorio, usuario: r.json.user.usuario };
-        saveSess();
-        logSync("login: ok", sess.usuario + " · " + sess.perfil);
-        applySessionUI();
-        if (msg) { msg.className = "login-msg ok"; msg.textContent = "Entrou como " + sess.nome + " (" + sess.perfil + ")"; }
-        return { ok: true, sess: sess };
-      }
-      var err = (r && r.json && r.json.error) || "falha (veja o Config/Testar webhook)";
-      logSync("login: recusado", err);
-      if (msg) { msg.className = "login-msg err"; msg.textContent = "Acesso negado: " + err; }
-      return { ok: false, error: err };
-    }).catch(function (e) {
-      if (msg) { msg.className = "login-msg err"; msg.textContent = "Sem conexão: " + (e && e.message ? e.message : "erro"); }
-      return { ok: false, error: e && e.message ? e.message : "sem conexão" };
-    }).finally(function () {
-      if (btn) { btn.disabled = false; if (btnText) btnText.textContent = "Acessar Sistema"; if (btnLoader) btnLoader.style.display = "none"; if (btnArrow) btnArrow.style.display = ""; }
-    });
-  }
-  function logout() {
-    sess = null;
-    try { localStorage.removeItem(LS.sess); } catch (e) {}
-    rowsAll = [];
-    applySessionUI();
-    if (cfg.webhook) askLogin();
-    toast("Sessão encerrada", "err-msg");
-  }
-  function toCsvRe(rowsArr) {
-    function cell(s) {
-      s = String(s == null ? "" : s);
-      if (/[",\r\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
-      return s;
-    }
-    return rowsArr.map(function (r) { return r.map(cell).join(","); }).join("\r\n");
-  }
-  function buildFromArrays(headers, rowsArr) {
-    var text = toCsvRe(rowsArr).replace(/^/, headers.map(function (h) { return String(h == null ? "" : h).replace(/"/g, '""'); }).join(",") + "\r\n");
-    return parseCsv(text);
   }
   function pushOne(c) {
     if (!cfg.webhook) {
@@ -612,7 +504,7 @@
       return false;
     }
     var row = sheetRow(c);
-    postRows({ token: cfg.token, action: "write", rows: [row] }).then(function (r) {
+    postRows({ token: cfg.token, rows: [row] }).then(function (r) {
       if (r && r.ok && r.json && r.json.ok) {
         toast("Enviado para a planilha (" + (r.json.updated || 0) + ")");
         popOutbox(c.id || c.protocolo);
@@ -641,67 +533,38 @@
   function doPull() {
     if (!cfg.url) return Promise.resolve(null);
     if (!window.lexisOffline || !window.lexisOffline.fetchText) return Promise.reject(new Error("Abra pelo EXE"));
-    if (sess && sess.token && cfg.webhook) {
-      logSync("pull: autenticado", sess.usuario);
-      return api("list", {}).then(function (r) {
-        logSync("pull: list", r && r.ok ? ("minhas=" + ((r.json && r.json.minhas && r.json.minhas.length) || 0) + " todas=" + ((r.json && r.json.todas && r.json.todas.length) || 0)) : "recusado: " + ((r && r.json && r.json.error) || (r && r.error) || "?"));
-        if (!(r && r.ok && r.json && r.json.ok)) {
-          throw new Error("auth: " + ((r && r.json && r.json.error) || "sessão inválida")); }
-        var headers = r.json.headers || [];
-        var minhas = buildFromArrays(headers, r.json.minhas || []);
-        var todas = buildFromArrays(headers, r.json.todas || []);
-        if (!minhas.length) logSync("pull: aviso", "nenhum caso devolvido para " + sess.usuario + " (verifique a coluna Responsavel)");
-        rows = minhas;
-        rowsAll = todas;
-        outbox.forEach(function (o) { reaplicaPendencia(o); });
-        scheduleSave(); renderAll(); setSyncPill("sync " + new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) + " · " + sess.usuario, "ok");
-        return rows;
-      });
-    }
-    logSync("pull: csv fallback", cfg.url.slice(0, 90));
     return window.lexisOffline.fetchText(cfg.url).then(function (res) {
-      logSync("pull: resposta", (res && res.ok ? "ok " + String(res.text || "").length + "B" : "falha: " + ((res && res.error) || "?")));
       if (!res || !res.ok) throw new Error((res && res.error) || "falha na planilha");
       var incoming = parseCsv(res.text || "");
-      logSync("pull: parse", "linhas " + incoming.length + (lastDiag ? " · RETORNO " + (lastDiag.retorno || "-") + " PRÓXIMO " + (lastDiag.proximo || "-") : ""));
       if (!incoming.length) throw new Error("nenhuma linha válida: " + csvDiagText());
       rows = incoming;
-      rowsAll = incoming;
-      if (sess) {
-        rows = incoming.filter(visibleToMe);
-        rowsAll = incoming.filter(visibleToMe);
-        logSync("pull: filtro local", sess.usuario + " vê " + rows.length + "/" + incoming.length);
-      }
-      outbox.forEach(function (o) { reaplicaPendencia(o); });
+      // reaplica pendências locais por cima
+      outbox.forEach(function (o) {
+        for (var i = 0; i < rows.length; i++) {
+          if (onlyDigits(rows[i].protocolo) === o.key) {
+            for (var f in o.row) {
+              var v = o.row[f];
+              if (f === "Protocolo") continue;
+              var low = normHeader(f);
+              if (low === normHeader(colMap.ultimoRetorno) || low === "retorno" || low === "ultimoretorno") rows[i].ultimoRetorno = parseDate(v) || rows[i].ultimoRetorno;
+              else if (low === normHeader(colMap.proximoPrazo) || low === "proximoretorno" || low === "proximoprazo" || low === "prazo") rows[i].proximoPrazo = parseDate(v) || rows[i].proximoPrazo;
+              else if (low === normHeader(colMap.observacao) || /obs/.test(low)) rows[i].observacao = v;
+              else if (low === normHeader(colMap.situacao) || /situac|status/.test(low)) rows[i].situacao = v;
+            }
+          }
+        }
+      });
       scheduleSave();
       renderAll();
       setSyncPill("sync " + new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }), "ok");
       return incoming;
     });
   }
-  function reaplicaPendencia(o) {
-    for (var i = 0; i < rows.length; i++) {
-      if (onlyDigits(rows[i].protocolo) === o.key) {
-        for (var f in o.row) {
-          var v = o.row[f];
-          if (f === "Protocolo") continue;
-          var low = normHeader(f);
-          if (low === normHeader(colMap.ultimoRetorno) || low === "retorno" || low === "ultimoretorno") rows[i].ultimoRetorno = parseDate(v) || rows[i].ultimoRetorno;
-          else if (low === normHeader(colMap.proximoPrazo) || low === "proximoretorno" || low === "proximoprazo" || low === "prazo") rows[i].proximoPrazo = parseDate(v) || rows[i].proximoPrazo;
-          else if (low === normHeader(colMap.observacao) || /obs/.test(low)) rows[i].observacao = v;
-          else if (low === normHeader(colMap.situacao) || /situac|status/.test(low)) rows[i].situacao = v;
-          else if (low === normHeader(colMap.responsavel) || /responsavel|usuario|dono/.test(low)) rows[i].responsavel = v;
-        }
-      }
-    }
-  }
   function doPush() {
     if (!cfg.webhook) return Promise.resolve({ skipped: true });
     if (!outbox.length) return Promise.resolve({ skipped: true });
     var rowsPayload = outbox.map(function (o) { return o.row; });
-    logSync("push: enviando", rowsPayload.length + " pendências");
-    return postRows({ token: cfg.token, action: "write", rows: rowsPayload }).then(function (r) {
-      logSync("push: resposta", (r && r.ok && r.json && r.json.ok) ? "ok updated=" + (r.json.updated) : "recusado: " + ((r && r.json && r.json.error) || (r && r.error) || (r && r.text ? String(r.text).slice(0, 120) : "?")));
+    return postRows({ token: cfg.token, rows: rowsPayload }).then(function (r) {
       if (r && r.ok && r.json && r.json.ok) {
         outbox = [];
         setSyncPill("sync " + new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }), "ok");
@@ -716,28 +579,19 @@
     });
   }
   function syncAll() {
+    readCfgFromInputs(false);
+    saveCfg();
     var t0 = Date.now();
-    logSync("sync: inicio", "manual/auto");
     setSyncPill("sincronizando…", "warn");
     var watchdog = setTimeout(function () {
-      var sec = Math.round((Date.now() - t0) / 1000);
-      logSync("sync: TRAVOU", sec + "s sem resposta");
-      setSyncPill("erro: travou (" + sec + "s)", "err");
-      toast("Sync travou em " + sec + "s — rede ou Google lento", "err-msg");
+      setSyncPill("erro: travou (" + Math.round((Date.now() - t0) / 1000) + "s)", "err");
+      toast("Sync travou em " + Math.round((Date.now() - t0) / 1000) + "s — rede ou Google lento", "err-msg");
     }, 75000);
-    function done() {
-      clearTimeout(watchdog);
-      try {
-        var raw = localStorage.getItem(LS.dbg);
-        if (raw) { var arr = JSON.parse(raw); if (Array.isArray(arr) && arr.length) syncLog = arr; }
-      } catch (e) {}
-      if (current === "config") renderConfig();
-    }
+    function done() { clearTimeout(watchdog); }
     Promise.resolve()
       .then(doPull)
       .then(doPush)
       .catch(function (e) {
-        logSync("sync: erro", e && e.message ? e.message : "falha");
         setSyncPill("erro: " + (e && e.message ? e.message.slice(0, 40) : "falha"), "err");
         toast("Sync: " + (e && e.message ? e.message : "falhou"), "err-msg");
       })
@@ -754,67 +608,66 @@
     try {
       if ($("cfgWebhook")) cfg.webhook = $("cfgWebhook").value.trim();
       if ($("cfgToken")) cfg.token = $("cfgToken").value.trim();
-      if ($("cfgOper")) cfg.oper = $("cfgOper").value.trim();
     } catch (e1) {}
     if (!cfg.token) cfg.token = "w1-fase1-2026";
     st.className = "hint";
-    st.textContent = "Testando webhook…";
+    st.textContent = "Testando…";
     var wh = String(cfg.webhook || "").trim().replace(/\/dev(\b|$)/, "/exec");
     if (!wh) {
       st.className = "hint err-msg";
-      st.textContent = "Cole a URL /exec do Apps Script (não o link da planilha).";
+      st.textContent = "Cole a URL /exec do Apps Script.";
       return;
     }
-    if (/docs\.google\.com\/spreadsheets/i.test(wh)) {
+    if (/docs\.google\.com/i.test(wh)) {
       st.className = "hint err-msg";
-      st.textContent = "Isso é link da PLANILHA. Webhook = script.google.com/.../exec";
+      st.textContent = "Isso é a planilha. Webhook = script.google.com/.../exec";
       return;
     }
     cfg.webhook = wh.replace(/\/exec\/?\s*$/, "/exec");
-    try { localStorage.setItem("lexis_g_webhook", cfg.webhook); localStorage.setItem("lexis_g_token", cfg.token); } catch (e2) {}
+    try {
+      localStorage.setItem("lexis_g_webhook", cfg.webhook);
+      localStorage.setItem("lexis_g_token", cfg.token);
+    } catch (e2) {}
     if (!window.lexisOffline || !window.lexisOffline.fetchJson) {
       st.className = "hint err-msg";
-      st.textContent = "Sem IPC Electron (reabra o app).";
+      st.textContent = "Sem IPC — reabra o EXE.";
       return;
     }
-    // 1) GET ?action=ping — não depende de redirect POST
-    var getUrl = cfg.webhook + (cfg.webhook.indexOf("?") >= 0 ? "&" : "?") +
-      "action=ping&token=" + encodeURIComponent(cfg.token);
+    var getUrl = cfg.webhook + "?action=ping&token=" + encodeURIComponent(cfg.token);
     window.lexisOffline.fetchJson(getUrl, { method: "GET" }).then(function (r) {
       if (r && r.json && r.json.pong === true) {
         st.className = "hint ok-msg";
-        st.textContent = "Webhook OK ✓ (GET ping) — escrita via POST no sync.";
+        st.textContent = "Webhook OK ✓";
         if (typeof toast === "function") toast("Webhook conectado", "ok-msg");
-        return null;
+        return;
       }
-      // 2) POST action=ping
+      // POST (doPost ping) — redirect correto = GET no usercontent
       return window.lexisOffline.fetchJson(cfg.webhook, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token: cfg.token, action: "ping", ping: true })
+      }).then(function (r2) {
+        if (r2 && r2.json && r2.json.pong === true) {
+          st.className = "hint ok-msg";
+          st.textContent = "Webhook OK ✓ (POST)";
+          if (typeof toast === "function") toast("Webhook conectado", "ok-msg");
+          return;
+        }
+        if (r2 && r2.json && r2.json.ok && r2.json.app && !r2.json.pong) {
+          st.className = "hint err-msg";
+          st.textContent = "Script no ar, mas SEM pong. Apps Script: cole o .gs novo → Implantar → Nova versão.";
+          return;
+        }
+        if (r && r.json && r.json.ok && r.json.app && !r.json.pong) {
+          st.className = "hint err-msg";
+          st.textContent = "Script antigo no /exec. Implantar → Nova versão com doGet que devolve pong.";
+          return;
+        }
+        var err = (r2 && (r2.error || (r2.json && r2.json.error))) || (r && r.error) || "";
+        var raw = String((r2 && r2.raw) || (r && r.raw) || "").replace(/\s+/g, " ").slice(0, 80);
+        st.className = "hint err-msg";
+        st.textContent = err || ("HTTP " + ((r2 && r2.http) || (r && r.http)) + " — " + raw);
       });
-    }).then(function (r) {
-      if (r === null || r === undefined) return;
-      if (r && r.json && r.json.pong === true) {
-        st.className = "hint ok-msg";
-        st.textContent = "Webhook OK ✓ (POST ping)";
-        if (typeof toast === "function") toast("Webhook conectado", "ok-msg");
-        return;
-      }
-      // 3) Resposta doGet sem pong = script no ar, mas versão antiga OU POST virou GET
-      if (r && r.json && r.json.ok === true && r.json.app) {
-        st.className = "hint err-msg";
-        st.textContent = "Script no ar, mas sem pong. No Apps Script: cole LEXIS-SYNC atualizado, Implantar → Nova versão. Depois teste de novo.";
-        return;
-      }
-      if (r && r.json && r.json.error) {
-        st.className = "hint err-msg";
-        st.textContent = "Script: " + r.json.error;
-        return;
-      }
-      st.className = "hint err-msg";
-      var raw = String((r && (r.raw || r.text)) || "").slice(0, 100);
-      st.textContent = "HTTP " + (r && r.http) + " — " + raw;
     }).catch(function (e) {
       st.className = "hint err-msg";
       st.textContent = "Rede: " + (e && e.message ? e.message : e);
@@ -828,26 +681,16 @@
     return '<div class="row-actions">' +
       '<button type="button" class="btn btn-sm" data-act="atend" data-id="' + esc(c.id) + '">Atender</button>' +
       '<button type="button" class="btn btn-sm" data-act="edit" data-id="' + esc(c.id) + '">Editar</button>' +
-      '<button type="button" class="btn btn-sm" data-act="sugerir" data-id="' + esc(c.id) + '" title="Revisar evento e ajustar">Sugerir</button>' +
       '<button type="button" class="btn btn-sm" data-act="scan" data-id="' + esc(c.id) + '" title="Consultar DataJud+DJEN">Scan</button>' +
       (c.telefone ? '<button type="button" class="btn btn-sm" data-act="wa" data-id="' + esc(c.id) + '">WhatsApp</button>' : "") +
       (c.protocolo ? '<button type="button" class="btn btn-sm" data-act="abrir" data-id="' + esc(c.id) + '" title="Abrir consulta no tribunal">CNJ</button>' : "") +
       "</div>";
   }
-  function caseBadgesHtml(c) {
-    var b = [];
-    if (!onlyDigits(c.telefone)) b.push('<span class="badge b-sem" title="Sem telefone">sem tel</span>');
-    if (c.is_procedente) b.push('<span class="badge b-ok">Procedente</span>');
-    if (c.is_improcedente) b.push('<span class="badge b-ven">Improcedente</span>');
-    if (c.datajud_encerrado_tribunal) b.push('<span class="badge b-hoje">Baixa</span>');
-    if (c.tem_novo_andamento || c.djen_nova_comunicacao) b.push('<span class="badge b-crit">Novo</span>');
-    return b.length ? '<div class="mini" style="margin-top:.2rem">' + b.join(" ") + "</div>" : "";
-  }
   function rowHtml(c, extraCols) {
     var st = statusDe(c);
     var f = faixaPrioridade(pesoFila(c));
     var dias = diasAte(c.proximoPrazo);
-    var h = "<tr" + (st === "Vencido" || st === "Caso Crítico" ? ' style="background:rgba(239,68,68,.05)"' : "") + "><td><b>" + esc(c.cliente || "—") + '</b><div class="mini">' + esc(c.protocolo || "") + "</div>" + caseBadgesHtml(c) + "</td>";
+    var h = "<tr" + (st === "Vencido" || st === "Caso Crítico" ? ' style="background:rgba(239,68,68,.05)"' : "") + "><td><b>" + esc(c.cliente || "—") + '</b><div class="mini">' + esc(c.protocolo || "") + "</div></td>";
     h += "<td>" + badge(st) + '</td><td><span class="num">' + esc(c.proximoPrazo || "—") + "</span></td>";
     h += "<td>" + (dias === null ? "—" : '<span class="num" style="color:' + (dias < 0 ? "var(--vencido)" : dias === 0 ? "var(--hoje)" : "var(--muted)") + '">' + dias + "</span>") + "</td>";
     h += '<td><span class="badge ' + f[1] + '">' + f[0] + "</span></td>";
@@ -866,27 +709,6 @@
     return h;
   }
 
-  function casoEvento(c) {
-    var ev = (c.evento_resumo || "").trim();
-    if (ev) return ev;
-    return (c.datajud_ultimo_movimento || "").trim() || "—";
-  }
-  function eventTableHtml(list) {
-    if (!list.length) return '<div class="empty">Nada para listar.</div>';
-    var h = "<table><thead><tr><th>Cliente</th><th>Status</th><th>Retorno</th><th>Dias</th><th>Prioridade</th><th>Evento</th><th>Ações</th></tr></thead><tbody>";
-    list.forEach(function (c) {
-      h += rowHtml(c, '<td class="mini" style="max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(casoEvento(c)) + "</td>");
-    });
-    h += "</tbody></table>";
-    return h;
-  }
-  function tfMetaV() {
-    try { var m = parseInt(localStorage.getItem("lexis_tf_meta") || "10", 10); return isNaN(m) || m < 1 ? 10 : m; } catch (e) { return 10; }
-  }
-  function tfMetaSet(v) {
-    try { localStorage.setItem("lexis_tf_meta", String(v)); } catch (e) {}
-  }
-
   function renderDashboard() {
     var k = kpisAll();
     var risk = computeRisk(k);
@@ -896,10 +718,10 @@
       kpiCard("Vencidos", k.venc, k.venc ? "err" : "") +
       kpiCard("É hoje", k.hoje, k.hoje ? "hoje" : "") +
       kpiCard("Atenção", k.aten, k.aten ? "warn" : "") +
-      kpiCard("Baixas tribunal", k.baixa, k.baixa ? "hoje" : "") +
+      kpiCard("Sem prazo", k.sem, "pri") +
+      kpiCard("Arquivados", k.arq, "", "encerrados/casos") +
       kpiCard("Atendidos hoje", k.atendidosHoje, k.atendidosHoje ? "ok" : "") +
-      kpiCard("Novidades", k.nov, k.nov ? "rose" : "") +
-      kpiCard("Risco", risk.score + "%", risk.score > 59 ? "err" : risk.score > 39 ? "warn" : "ok", risk.label);
+      kpiCard("Novidades", k.nov, k.nov ? "rose" : "");
 
     var crit = sortByPriority(rows.filter(function (c) {
       var st = statusDe(c); return st === "Vencido" || st === "É Hoje" || st === "Caso Crítico";
@@ -961,83 +783,25 @@
   }
   function renderFila() {
     var k = kpisAll();
-    var hoje = hojeBR();
-    var venc = rows.filter(function (c) { var st = statusDe(c); return st === "Vencido" || st === "Caso Crítico"; }).length;
-    var feitos = rows.filter(function (c) { return c.ultimoRetorno === hoje; }).length;
-    var meta = tfMetaV();
-    var pct = meta > 0 ? Math.min(100, Math.round((feitos / meta) * 100)) : 0;
     $("filaKpis").innerHTML =
-      kpiCard("Pendentes", venc + k.hoje, (venc + k.hoje) ? (venc ? "err" : "hoje") : "ok", "vencidos + é hoje") +
+      kpiCard("Vencidos", k.venc, k.venc ? "err" : "") +
+      kpiCard("É hoje", k.hoje, k.hoje ? "hoje" : "") +
       kpiCard("Atenção", k.aten, k.aten ? "warn" : "") +
-      kpiCard("Novidades", k.nov, k.nov ? "rose" : "") +
-      kpiCard("Finalizados hoje", feitos, feitos ? "ok" : "") +
-      kpiCard("Meta do dia", feitos + "/" + meta, pct >= 100 ? "ok" : pct >= 60 ? "warn" : "pri", pct + "%");
-    var minfo = $("tfMetaInfo");
-    if (minfo) minfo.textContent = "Meta do dia · " + meta + " · faltam " + Math.max(0, meta - feitos);
-
-    var meusHojeEl = $("tfMeusHoje"), soloMetaEl = $("tfSoloMeta");
-
+      kpiCard("Sem prazo", k.sem, "pri");
+    var ft = ($("filtroFila") && $("filtroFila").value) || "fila";
     var q = (($("qFila") && $("qFila").value) || "").toLowerCase();
-    var ff = ($("tfFiltro") && $("tfFiltro").value) || "todos";
-    var pf = ($("tfPrazo") && $("tfPrazo").value) || "score";
-    var meusHoje = !!(meusHojeEl && meusHojeEl.checked);
-    var solo = !!(soloMetaEl && soloMetaEl.checked);
     var list = rows.filter(function (c) {
       var st = statusDe(c);
       if (st === "Arquivado") return false;
-      var ev = (c.evento_resumo || "").toLowerCase();
-      var base = c.ultimoRetorno || c.data_distribuicao;
-      var ds = diasDesde(base);
-      var dp = diasAte(c.proximoPrazo);
-      if (ff === "novidade" && !(c.tem_novo_andamento || c.djen_nova_comunicacao)) return false;
-      if (ff === "vencido" && st !== "Vencido" && st !== "Caso Crítico") return false;
-      if (ff === "hoje" && st !== "É Hoje") return false;
-      if (ff === "ba" && ev.indexOf("busca") < 0) return false;
-      if (ff === "parados" && (c.datajud_ultimo_movimento || ds === null || ds < 60)) return false;
-      if (ff === "sil45" && (ds === null || ds < 45)) return false;
-      if (ff === "cumpr" && !/cumpriment|execuç|execucao/.test(ev)) return false;
-      if (ff === "tranquilos" && !(st === "No Prazo" && (dp === null || dp > 60) && !c.tem_novo_andamento && !c.djen_nova_comunicacao)) return false;
-      if (meusHoje && (dp === null || dp < 0 || dp > 1)) return false;
+      if (ft === "fila" && st !== "Vencido" && st !== "É Hoje" && st !== "Caso Crítico") return false;
+      if (ft === "vencido" && st !== "Vencido" && st !== "Caso Crítico") return false;
+      if (ft === "hoje" && st !== "É Hoje") return false;
+      if (ft === "atencao" && st !== "Atenção") return false;
       if (q && String(c.cliente + " " + c.protocolo + " " + c.telefone).toLowerCase().indexOf(q) < 0) return false;
       return true;
     });
-    function cmpT(a, b) {
-      if (pf === "az") return String(a.cliente || "").localeCompare(String(b.cliente || ""), "pt-BR");
-      if (pf === "vencid") {
-        var av = diasAte(a.proximoPrazo), bv = diasAte(b.proximoPrazo);
-        return (av === null ? 99999 : av) - (bv === null ? 99999 : bv);
-      }
-      if (pf === "prazo") {
-        var ap = a.proximoPrazo || "9999-99-99", bp = b.proximoPrazo || "9999-99-99";
-        return ap < bp ? -1 : ap > bp ? 1 : 0;
-      }
-      return pesoFila(b) - pesoFila(a);
-    }
-    list = list.slice().sort(cmpT);
-    if (solo) list = list.slice(0, meta);
-    var groups = [], gmap = {};
-    list.forEach(function (c) {
-      var nm = c.cliente || "Sem cliente";
-      if (!gmap[nm]) { gmap[nm] = []; groups.push([nm, gmap[nm]]); }
-      gmap[nm].push(c);
-    });
-    var h = "";
-    groups.forEach(function (g) {
-      var arr = g[1];
-      var score = arr.reduce(function (s, c) { return s + pesoFila(c); }, 0);
-      var hasNov = arr.some(function (c) { return c.tem_novo_andamento || c.djen_nova_comunicacao; });
-      h += '<div class="card task-group" style="margin-top:.6rem">';
-      h += '<div class="toolbar" style="gap:.5rem;flex-wrap:wrap">';
-      h += '<h2 style="margin:0;flex:1;min-width:150px">' + esc(g[0]) + "</h2>";
-      if (hasNov) h += '<span class="pill rose">novidade</span>';
-      h += '<span class="pill">' + arr.length + " caso" + (arr.length > 1 ? "s" : "") + "</span>";
-      h += '<span class="badge ' + faixaPrioridade(score)[1] + '">score ' + score + "</span>";
-      h += "</div>";
-      h += eventTableHtml(arr);
-      h += "</div>";
-    });
-    if (!h) h = '<div class="empty"><b>Fila vazia</b>Ajuste os filtros ou importe a planilha.</div>';
-    $("filaCards").innerHTML = h;
+    var ordered = ft === "prioridade" || ft === "ativos" ? sortByPriority(list) : sortByPriority(list);
+    $("filaTable").innerHTML = tableHtml(ordered.slice(0, 300), ["Cliente", "Status", "Retorno", "Dias", "Prioridade"]);
   }
   function renderCasos() {
     var q = (($("qCasos") && $("qCasos").value) || "").toLowerCase();
@@ -1055,10 +819,9 @@
     $("casosTable").innerHTML = tableHtml(sortByPriority(list).slice(0, 400), ["Cliente", "Status", "Retorno", "Dias", "Prioridade"]);
   }
   function renderProcessos() {
-    var all = rowsAll.length ? rowsAll : rows;
-    var k = kpisAll(all);
+    var k = kpisAll();
     var atendSemana = [];
-    all.forEach(function (c) {
+    rows.forEach(function (c) {
       if (!c.ultimoRetorno || statusDe(c) === "Arquivado") return;
       var d = diasDesde(c.ultimoRetorno);
       if (d !== null && d >= 0 && d <= 7) atendSemana.push(c);
@@ -1081,7 +844,7 @@
           return '<div style="display:flex;align-items:center;gap:.5rem;padding:.3rem 0;border-bottom:1px solid var(--border2)"><b style="width:22px;color:var(--muted)">' + (i + 1) + ".</b><span style='flex:1;font-weight:700'>" + esc(w) + '</span><span class="badge b-pri">' + rank[w] + "</span></div>";
         }).join("")
       : '<div class="empty">Sem atendimentos na semana ainda.</div>';
-    $("empTable").innerHTML = tableHtml(sortByPriority(all).slice(0, 500), ["Cliente", "Status", "Retorno", "Dias", "Prioridade"]);
+    $("empTable").innerHTML = tableHtml(sortByPriority(rows).slice(0, 500), ["Cliente", "Status", "Retorno", "Dias", "Prioridade"]);
   }
   function renderParados() {
     var hoje = hojeBR();
@@ -1118,154 +881,21 @@
     }
     $("encerTable").innerHTML = tableHtml(list.slice(0, 200), ["Cliente", "Status", "Retorno", "Dias", "Prioridade", "Revisão"], extra);
   }
-  function renderDossie() {
-    var period = ($("repPeriod") && $("repPeriod").value) || "semana";
-    var today = hojeBR();
+  function renderAgenda() {
     var k = kpisAll();
-    var risk = computeRisk(k);
-    function inPeriod(iso) {
-      var d = diasDesde(iso);
-      if (d === null || d < 0) return false;
-      if (period === "semana") return d <= 7;
-      if (period === "anterior") return d >= 8 && d <= 14;
-      if (period === "mes") return String(iso || "").slice(0, 7) === today.slice(0, 7);
-      return true;
-    }
-    var eventos = rows.filter(function (c) { return c.ultimoRetorno && inPeriod(c.ultimoRetorno); });
-    var atendidos = rows.filter(function (c) { return c.ultimoRetorno && inPeriod(c.ultimoRetorno); }).length;
-    var filaAtual = rows.filter(function (c) { var st = statusDe(c); return st === "Vencido" || st === "É Hoje"; });
-    var criticidade = sortByPriority(rows.filter(function (c) { return statusDe(c) !== "Arquivado"; })).slice(0, 10);
-    var parados60 = rows.filter(function (c) {
-      if (statusDe(c) === "Arquivado") return false;
-      if (c.datajud_ultimo_movimento) return false;
-      var ds = diasDesde(c.ultimoRetorno || c.data_distribuicao);
-      return ds === null || ds >= 60;
+    var week = rows.filter(function (c) {
+      var st = statusDe(c); if (st === "Arquivado") return false;
+      var d = diasAte(c.proximoPrazo); return d !== null && d >= 0 && d <= 7;
     });
-    var topEncerra = sortByPriority(rows.filter(function (c) {
-      if (statusDe(c) === "Arquivado") return false;
-      return isBaixaTribunal(c) || hasStrongEncerrado(c) || c.is_procedente || /cumpriment/.test((c.evento_resumo || "").toLowerCase());
-    })).slice(0, 10);
-    var salvos = rows.filter(function (c) { return c.is_procedente; });
-    var sentenc = rows.filter(function (c) {
-      var ev = (c.evento_resumo || "").toLowerCase();
-      return /senten[çc]|julgad/.test(ev) || c.is_improcedente;
+    var venc = rows.filter(function (c) {
+      var st = statusDe(c); return st === "Vencido" || st === "Caso Crítico";
     });
-    $("repKpis").innerHTML =
-      kpiCard("Carteira", k.total, "") +
-      kpiCard("Ativos", k.ativos, "pri") +
+    $("agKpis").innerHTML =
+      kpiCard("Nesta semana", week.length, week.length ? "pri" : "") +
       kpiCard("Vencidos", k.venc, k.venc ? "err" : "") +
-      kpiCard("É hoje", k.hoje, k.hoje ? "hoje" : "") +
-      kpiCard("Atenção", k.aten, k.aten ? "warn" : "") +
-      kpiCard("Sem prazo", k.sem, "pri") +
-      kpiCard("Arquivados", k.arq, "") +
-      kpiCard("Baixas tribunal", k.baixa, k.baixa ? "hoje" : "") +
-      kpiCard("Novidades", k.nov, k.nov ? "rose" : "") +
-      kpiCard("Risco", risk.score + "%", risk.score > 59 ? "err" : risk.score > 39 ? "warn" : "ok", risk.label) +
-      kpiCard("Procedentes", k.proc, k.proc ? "ok" : "") +
-      kpiCard("Improcedentes", k.improc, k.improc ? "warn" : "") +
-      kpiCard("Atendimentos", atendidos, atendidos ? "ok" : "") +
-      kpiCard("Meta do dia", tfMetaV(), "") +
-      kpiCard("Fila (v+h)", filaAtual.length, filaAtual.length ? "err" : "ok") +
-      kpiCard("Parados 60+", parados60.length, parados60.length ? "warn" : "ok");
-    var dias = {};
-    eventos.forEach(function (c) { dias[c.ultimoRetorno] = (dias[c.ultimoRetorno] || 0) + 1; });
-    var keys = Object.keys(dias).sort();
-    $("repDias").innerHTML = keys.length
-      ? '<div style="display:flex;gap:.5rem;flex-wrap:wrap">' + keys.map(function (d2) { return '<span class="pill">' + fmtBR(d2) + " · " + dias[d2] + "</span>"; }).join("") + "</div>"
-      : '<div class="empty">Sem atendimentos no período.</div>';
-    $("repCrit").innerHTML = eventTableHtml(criticidade);
-    $("repEncerra").innerHTML = eventTableHtml(topEncerra);
-    $("repParados").innerHTML = eventTableHtml(parados60.slice(0, 20));
-    function merRow(lbl, n, note) {
-      return "<tr><td><b>" + esc(lbl) + '</b></td><td><span class="num">' + n + '</span></td><td class="mini">' + note + "</td></tr>";
-    }
-    $("repMerito").innerHTML =
-      "<table><thead><tr><th>Mérito</th><th>Casos</th><th>Base</th></tr></thead><tbody>" +
-      merRow("Procedentes (salvos)", k.proc, "Faixa ou evento com procedência") +
-      merRow("Improcedentes", k.improc, "Faixa de improcedência") +
-      merRow("Sentenciados / julgados", sentenc.length, "Evento contém sentença/julgamento") +
-      merRow("Baixas do tribunal", k.baixa, "Tribunal deu baixa definitiva") +
-      "</tbody></table>";
+      kpiCard("É hoje", k.hoje, k.hoje ? "hoje" : "");
+    $("agendaTable").innerHTML = tableHtml(sortByPriority(week), ["Cliente", "Status", "Retorno", "Dias", "Prioridade"]);
   }
-
-  var agAnchor = new Date();
-    agAnchor.setHours(12, 0, 0, 0);
-    var agView = "semana";
-    function isoOf(d) {
-      var z = function (n) { return (n < 10 ? "0" : "") + n; };
-      return d.getFullYear() + "-" + z(d.getMonth() + 1) + "-" + z(d.getDate());
-    }
-    function fmtBR(iso) {
-      if (!iso) return "";
-      var p = String(iso).split("-");
-      return (p[2] || "") + "/" + (p[1] || "");
-    }
-    function agMonday() {
-      var d = new Date(agAnchor.getTime());
-      d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
-      return d;
-    }
-    function agDayHtml(iso, label, isToday) {
-      var today = hojeBR();
-      var d = diasAte(iso);
-      var cls = isToday ? "ag-today" : (d !== null && d < 0 ? "ag-past" : "");
-      var cap = "vencido " + Math.abs(d) + "d";
-      var sub = d === null ? "" : d === 0 ? "hoje" : "em " + d + "d";
-      var evs = rows.filter(function (c) {
-        if (statusDe(c) === "Arquivado") return false;
-        var st = statusDe(c); if (st === "Vencido" || st === "Caso Crítico") return false;
-        return c.proximoPrazo === iso;
-      });
-      var h = '<div class="ag-day ' + cls + '"><div class="ag-head"><b>' + esc(label) + "</b><small>" + (d !== null && d < 0 ? cap : sub) + "</small></div><div class='ag-body'>";
-      if (!evs.length) h += '<div class="mini" style="padding:.4rem">—</div>';
-      evs.forEach(function (c) {
-        h += '<div class="ag-item"><div style="font-weight:700;font-size:.82rem">' + esc(c.cliente || "—") + '</div><div class="mini">' + esc(casoEvento(c)) + '</div><div class="row-actions"><button type="button" class="btn btn-sm" data-act="atend" data-id="' + esc(c.id) + '">Atender</button></div></div>';
-      });
-      h += "</div></div>";
-      return h;
-    }
-    function renderAgenda() {
-      var k = kpisAll();
-      var today = hojeBR();
-      var dp = rows.filter(function (c) { return statusDe(c) !== "Arquivado" && c.proximoPrazo; });
-      $("agKpis").innerHTML =
-        kpiCard("Vencidos", k.venc, k.venc ? "err" : "") +
-        kpiCard("É hoje", k.hoje, k.hoje ? "hoje" : "") +
-        kpiCard("Atenção", k.aten, k.aten ? "warn" : "") +
-        kpiCard("Com prazo marcado", dp.length, "pri");
-      var view = agView;
-      $("agWeek").style.display = view === "semana" ? "" : "none";
-      $("agDay").style.display = view === "dia" ? "" : "none";
-      $("agList").style.display = view === "lista" ? "" : "none";
-      document.querySelectorAll(".ag-v").forEach(function (b) {
-        b.classList.toggle("active", b.getAttribute("data-agv") === view);
-      });
-      var lbl = $("agWeekLabel");
-      if (view === "semana") {
-        var mon = agMonday();
-        lbl.textContent = "Semana de " + fmtBR(isoOf(mon)) + " a " + fmtBR(isoOf(new Date(mon.getTime() + 6 * 86400000)));
-        var w = '<div class="ag-grid">';
-        var names = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
-        for (var i = 0; i < 7; i++) {
-          var day = new Date(mon.getTime() + i * 86400000);
-          w += agDayHtml(isoOf(day), names[i] + " " + day.getDate(), isoOf(day) === today);
-        }
-        $("agWeek").innerHTML = w + "</div>";
-      } else if (view === "dia") {
-        lbl.textContent = "Dia " + fmtBR(isoOf(agAnchor)) + (isoOf(agAnchor) === today ? " · hoje" : "");
-        $("agDay").innerHTML = '<div class="ag-grid">' + agDayHtml(isoOf(agAnchor), fmtBR(isoOf(agAnchor)) + " · " + "clique em Atender para remarcar", isoOf(agAnchor) === today) + "</div>";
-      } else {
-        lbl.textContent = "Lista · prioridade";
-        var ll = sortByPriority(rows.filter(function (c) {
-          if (statusDe(c) === "Arquivado") return false;
-          var st = statusDe(c); if (st === "Vencido" || st === "Caso Crítico") return true;
-          var d = diasAte(c.proximoPrazo); return c.proximoPrazo && d !== null && d <= 30;
-        }));
-        $("agList").innerHTML = eventTableHtml(ll.slice(0, 200));
-      }
-      var ot = $("agWeek").getElementsByClassName("ag-today");
-      if (ot.length && view === "semana") ot[0].scrollIntoView({ block: "nearest", inline: "nearest" });
-    }
   function renderNotas() {
     if (!notes.length) {
       $("notasList").innerHTML = '<div class="empty"><b>Nenhuma nota</b>Anotações locais (não vão para a planilha).</div>';
@@ -1280,67 +910,6 @@
     $("cfgWebhook").value = cfg.webhook || "";
     $("cfgToken").value = cfg.token || "";
     $("cfgOper").value = cfg.oper || "";
-    var ls = $("cfgLastSync");
-    if (ls) ls.textContent = "Última atividade de sync: " + lastSyncLine();
-  }
-
-  /* ============================ equipe (supervisor/superadmin) ============================ */
-  function loadEquipe() {
-    var box = $("eqTable"), st = $("eqStatus");
-    if (!canAdmin()) { if (box) box.innerHTML = ""; return; }
-    if (st) st.textContent = "Carregando usuários…";
-    api("users", {}).then(function (r) {
-      if (!r || !r.ok || !r.json || !r.json.ok) {
-        var err = (r && r.json && r.json.error) || "sem resposta";
-        if (st) st.textContent = "Falha: " + err;
-        if (box) box.innerHTML = '<div class="empty">' + esc(err) + "</div>";
-        return;
-      }
-      if (st) st.textContent = r.json.users.length + " usuário(s) · via planilha";
-      if (!box) return;
-      var L = roleLevel(sess.perfil);
-      box.innerHTML = "<table><thead><tr><th>Login</th><th>Nome</th><th>Perfil</th><th>Ati.</th><th>Ações</th></tr></thead><tbody>" +
-        r.json.users.map(function (u) {
-          var me = sess && sess.usuario === u.login;
-          var lock = roleLevel(u.perfil) > L;
-          var canTouch = !me && !lock;
-          var ban = String(u.ativo) === "sim" ? "Banir" : "Ativar";
-          var cls = String(u.ativo) === "sim" ? "ok-msg" : "err-badge";
-          return "<tr><td><b>" + esc(u.login) + "</b>" + (me ? ' <span class="mini">(você)</span>' : "") + "</td>" +
-            "<td>" + esc(u.nome) + "</td>" +
-            "<td>" + esc(u.perfil) + "</td>" +
-            "<td><span class='" + cls + "'>" + (String(u.ativo) === "sim" ? "ativo" : "banido") + "</span></td>" +
-            "<td>" + (canTouch
-              ? "<button class='mini-btn' data-eqban='" + esc(u.login) + "'>" + ban + "</button>"
-              : "<span class='mini'>" + (lock ? "acima de você" : "") + (me ? "você mesmo" : "") + "</span>") + "</td></tr>";
-        }).join("") + "</tbody></table>";
-      box.querySelectorAll("[data-eqban]").forEach(function (b) {
-        b.addEventListener("click", function () {
-          var login = b.getAttribute("data-eqban");
-          var acao = b.textContent.trim() === "Ativar" ? "sim" : "nao";
-          if (acao === "nao" && !confirm("Banir " + login + "? Ele não vai mais conseguir entrar.")) return;
-          api("user_set", { login: login, ativo: acao }).then(function (r) {
-            if (r && r.ok && r.json && r.json.ok) { toast("Atualizado: " + login); loadEquipe(); }
-            else toast((r && r.json && r.json.error) || "falha ao atualizar", "err-badge");
-          });
-        });
-      });
-    });
-  }
-  function novoUsuario() {
-    var login = String($("eqLogin").value || "").trim().toLowerCase();
-    var nome = String($("eqNome").value || "").trim();
-    var senha = String($("eqSenha").value || "");
-    var perfil = String($("eqPerfil").value || "assistente");
-    var escr = String($("eqEscritorio").value || "").trim();
-    if (!login || senha.length < 4) { toast("Login e senha (4+ caracteres) são obrigatórios", "err-badge"); return; }
-    api("user_create", { login: login, nome: nome || login, senha: senha, perfil: perfil, escritorio: escr }).then(function (r) {
-      if (r && r.ok && r.json && r.json.ok) {
-        toast("Usuário criado: " + login);
-        $("eqLogin").value = ""; $("eqNome").value = ""; $("eqSenha").value = ""; $("eqEscritorio").value = "";
-        loadEquipe();
-      } else toast((r && r.json && r.json.error) || "falha ao criar", "err-badge");
-    });
   }
   function renderAll() {
     renderDashboard();
@@ -1349,7 +918,6 @@
     renderProcessos();
     renderParados();
     renderEncerrados();
-    renderDossie();
     renderAgenda();
     renderNotas();
   }
@@ -1370,7 +938,6 @@
       renderScanUI();
       scanTab($("sctab-logs") && $("sctab-logs").style.display === "block" ? "logs" : "varredura");
     }
-    if (name === "equipe") loadEquipe();
   }
 
   /* ============================ atendimento / edição ============================ */
@@ -1423,7 +990,6 @@
     $("edTribunal").value = c.tribunal || "";
     $("edAdvogado").value = c.advogado || "";
     $("edEscritorio").value = c.escritorio || "";
-    $("edResponsavel").value = c.responsavel || "";
     $("edSituacao").value = c.situacao || "";
     $("edStatusManual").value = c.statusManual === "Automatico" ? "Automatico" : c.statusManual || "Automatico";
     $("edUltimo").value = c.ultimoRetorno || "";
@@ -1440,7 +1006,6 @@
     c.tribunal = $("edTribunal").value.trim();
     c.advogado = $("edAdvogado").value.trim();
     c.escritorio = $("edEscritorio").value.trim();
-    c.responsavel = $("edResponsavel").value.trim() || c.responsavel;
     c.situacao = $("edSituacao").value.trim() || c.situacao;
     c.statusManual = $("edStatusManual").value;
     c.ultimoRetorno = $("edUltimo").value || null;
@@ -2052,82 +1617,10 @@
       });
     };
   }
-  function buildReportPdf() {
-    var today = hojeBR();
-    var k = kpisAll();
-    var risk = computeRisk(k);
-    var U = sess ? (sess.nome || sess.usuario) : "local";
-    function trA(arr, cols) {
-      var h = "<table><thead><tr>";
-      cols.forEach(function (c) { h += "<th>" + c + "</th>"; });
-      h += "</tr></thead><tbody>";
-      arr.forEach(function (c) {
-        var st = statusDe(c);
-        var d = diasAte(c.proximoPrazo);
-        h += "<tr><td><b>" + esc(c.cliente || "—") + "</b><br><small>" + esc(c.protocolo || "") + "</small></td>";
-        h += "<td>" + st + "</td><td>" + esc(c.proximoPrazo || "—") + "</td><td>" + (d === null ? "—" : d) + "</td>";
-        h += "<td>" + esc(casoEvento(c)) + "</td></tr>";
-      });
-      return h + "</tbody></table>";
-    }
-    function block(title, body) {
-      return "<div class='blk'><h3>" + title + "</h3>" + body + "</div>";
-    }
-    var kpis = "";
-    var cards = [
-      ["Carteira", k.total], ["Ativos", k.ativos], ["Vencidos", k.venc], ["É hoje", k.hoje],
-      ["Atenção", k.aten], ["Sem prazo", k.sem], ["Arquivados", k.arq], ["Baixas tribunal", k.baixa],
-      ["Novidades", k.nov], ["Risco", risk.score + "%"], ["Procedentes", k.proc], ["Improcedentes", k.improc]
-    ];
-    cards.forEach(function (x) { kpis += '<span class="k"><b>' + x[0] + "</b>" + x[1] + "</span>"; });
-    var eventos = rows.filter(function (c) { return c.ultimoRetorno; });
-    var dias = {};
-    eventos.forEach(function (c) { dias[c.ultimoRetorno] = (dias[c.ultimoRetorno] || 0) + 1; });
-    var keysDias = Object.keys(dias).sort();
-    var criticidade = sortByPriority(rows.filter(function (c) { return statusDe(c) !== "Arquivado"; })).slice(0, 10);
-    var parados = rows.filter(function (c) {
-      if (statusDe(c) === "Arquivado" || c.datajud_ultimo_movimento) return false;
-      var ds = diasDesde(c.ultimoRetorno || c.data_distribuicao);
-      return !ds || ds >= 60;
-    }).slice(0, 20);
-    var filaAtual = rows.filter(function (c) { var st = statusDe(c); return st === "Vencido" || st === "É Hoje"; });
-    var html = "<!DOCTYPE html><html lang='pt-BR'><head><meta charset='utf-8'><title>Dossiê operacional</title><style>" +
-      "body{font:12px/1.4 'Segoe UI',Arial,sans-serif;color:#1e293b;margin:26px}h1{font-size:20px;margin:0 0 2px}" +
-      "h3{margin:.3rem 0}small{color:#64748b;font-weight:400}.meta{color:#475569;margin-bottom:12px}" +
-      ".kpis{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.k{flex:1 1 90px;border:1px solid #e2e8f0;border-radius:8px;padding:8px;text-align:center}" +
-      ".k b{display:block;font-size:10px;text-transform:uppercase;color:#475569}" +
-      ".k{font-size:18px;font-weight:700}.blk{margin:16px 0;page-break-inside:avoid}" +
-      "table{width:100%;border-collapse:collapse;margin-top:6px}th{background:#f1f5f9;text-align:left;padding:5px 6px;font-size:10px;text-transform:uppercase}" +
-      "td{padding:5px 6px;border-bottom:1px solid #e2e8f0}.pill{display:inline-block;padding:2px 8px;border:1px solid #cbd5e1;border-radius:99px;margin:2px;font-size:11px}" +
-      "</style></head><body>" +
-      "<h1>Dossiê operacional — Lexis Gabinete</h1>" +
-      "<div class='meta'>Usuário: " + esc(U) + " &nbsp;·&nbsp; " + today.replace(/-/g, "/").split("/").reverse().join("/") + " &nbsp;·&nbsp; " + rows.length + " casos na visão</div>" +
-      "<div class='kpis'>" + kpis + "</div>" +
-      block("Fila atual (vencidos + é hoje) · " + filaAtual.length, filaAtual.length ? trA(sortByPriority(filaAtual).slice(0, 30), ["Cliente", "Status", "Retorno", "Dias", "Evento"]) : "<small>Nenhuma pendência crítica.</small>") +
-      block("Atendimentos por dia", keysDias.length ? keysDias.map(function (d2) { return "<span class='pill'>" + d2.replace(/-/g, "/").split("/").reverse().join("/") + " · " + dias[d2] + "</span>"; }).join("") : "<small>Sem atendimentos ainda.</small>") +
-      block("Top criticidade · 10", trA(criticidade, ["Cliente", "Status", "Retorno", "Dias", "Evento"])) +
-      block("Encerramento (revisar)", trA(sortByPriority(rows.filter(function (c) {
-        if (statusDe(c) === "Arquivado") return false;
-        return isBaixaTribunal(c) || hasStrongEncerrado(c) || c.is_procedente;
-      })).slice(0, 10), ["Cliente", "Status", "Retorno", "Dias", "Evento"])) +
-      block("Parados 60+ dias", parados.length ? trA(parados, ["Cliente", "Status", "Retorno", "Dias", "Evento"]) : "<small>Nenhum parado.</small>") +
-      block("Mérito", "<b>Procedentes:</b> " + k.proc + " &nbsp;&nbsp; <b>Improcedentes:</b> " + k.improc + " &nbsp;&nbsp; <b>Baixas:</b> " + k.baixa) +
-      "</body></html>";
-    return html;
-  }
   function bindDossie() {
     $("btnReport").onclick = function () {
       $("reportOut").textContent = buildDossier();
       toast("Dossiê gerado");
-    };
-    $("btnReportPdf").onclick = function () {
-      var html = buildReportPdf();
-      if (!window.lexisOffline || !window.lexisOffline.printPdf) { toast("PDF requer o Lexis Gabinete.exe", "err-msg"); return; }
-      window.lexisOffline.printPdf({ html: html, name: "dossie-operacional.pdf" }).then(function (r) {
-        if (!r) return toast("Falha ao gerar PDF", "err-msg");
-        if (r.ok) toast("PDF salvo: " + (r.path || ""), "ok-msg");
-        else if (!r.canceled) toast("Erro PDF: " + (r.error || "?"), "err-msg");
-      });
     };
     $("btnCopyReport").onclick = function () {
       var txt = $("reportOut").textContent || "";
@@ -2162,122 +1655,13 @@
   }
   function bindConfig() {
     $("btnSaveCfg").onclick = function () {
-      cfg.url = $("cfgUrl").value.trim();
-      cfg.webhook = $("cfgWebhook").value.trim();
-      cfg.token = $("cfgToken").value.trim();
-      cfg.oper = $("cfgOper").value.trim();
+      readCfgFromInputs(true);
+      if (!cfg.token) cfg.token = "w1-fase1-2026";
       saveCfg();
       if ($("sheetsUrl")) $("sheetsUrl").value = cfg.url;
       toast("Configurações salvas");
     };
     $("btnTestWebhook").onclick = testWebhook;
-  }
-  var REG_TOKEN = "Azadsd5a96d5.6as5sa2d652as+94s9";
-  var remoteAccessEnabled = false;
-  function bindLogin() {
-    var form = $("loginForm");
-    var emailEl = $("loginEmail");
-    var passEl = $("loginPass");
-    var tokenEl = $("loginToken");
-    var tokenField = $("loginTokenField");
-    var msgEl = $("loginMsg");
-    var btnLogin = $("btnLogin");
-    var btnLoginText = $("btnLoginText");
-    var btnLoginLoader = $("btnLoginLoader");
-    var btnLoginArrow = $("btnLoginArrow");
-    var btnConfig = $("btnLoginConfig");
-    var btnLocal = $("btnLoginLocal");
-    var btnRemote = $("btnRemoteAccess");
-    var btnRequest = $("btnRequestInstance");
-
-    function setLoading(isLoading) {
-      if (btnLogin) btnLogin.disabled = isLoading;
-      if (btnLoginText) btnLoginText.textContent = isLoading ? "Sincronizando..." : "Acessar Sistema";
-      if (btnLoginLoader) btnLoginLoader.style.display = isLoading ? "block" : "none";
-      if (btnLoginArrow) btnLoginArrow.style.display = isLoading ? "none" : "";
-    }
-
-    function showMsg(text, type) {
-      if (!msgEl) return;
-      msgEl.textContent = text;
-      msgEl.className = "login-msg " + (type || "info");
-    }
-
-    function checkToken() {
-      var val = (tokenEl && tokenEl.value.trim()) || "";
-      if (val === REG_TOKEN) {
-        if (tokenField) tokenField.classList.add("visible");
-        showMsg("Token válido — cadastro liberado", "ok");
-      } else {
-        if (tokenField) tokenField.classList.remove("visible");
-      }
-    }
-
-    if (form) {
-      form.addEventListener("submit", function (e) {
-        e.preventDefault();
-        var email = (emailEl && emailEl.value.trim().toLowerCase()) || "";
-        var pass = (passEl && passEl.value) || "";
-        if (!email || !pass) { showMsg("Preencha e-mail e senha.", "err"); return; }
-        if (!cfg.webhook) { showMsg("Configure a URL do webhook em Configurar antes.", "err"); return; }
-        doLogin(email, pass).then(function (r) {
-          if (r.ok && cfg.url && window.lexisOffline) {
-            toast("Logado · sincronizando " + r.sess.usuario, "ok-msg");
-            syncAll();
-          }
-        });
-        if (passEl) passEl.value = "";
-      });
-    }
-
-    function enterGo(e) { if (e.key === "Enter" || (e.keyCode && e.keyCode === 13)) { if (btnLogin) btnLogin.click(); } }
-    if (emailEl) emailEl.addEventListener("keydown", enterGo);
-    if (passEl) passEl.addEventListener("keydown", enterGo);
-    if (tokenEl) {
-      tokenEl.addEventListener("keydown", enterGo);
-      tokenEl.addEventListener("input", checkToken);
-      tokenEl.addEventListener("paste", function () { setTimeout(checkToken, 0); });
-    }
-
-    if (btnConfig) {
-      btnConfig.onclick = function () { setLoginOverlay(false); nav("config"); toast("Confira o webhook e o token, depois volte para o login."); };
-    }
-
-    if (btnRemote) {
-      btnRemote.addEventListener("click", function () {
-        remoteAccessEnabled = !remoteAccessEnabled;
-        btnRemote.classList.toggle("active", remoteAccessEnabled);
-        btnRemote.setAttribute("aria-pressed", remoteAccessEnabled);
-        var txt = remoteAccessEnabled ? "Acesso remoto ATIVADO — app acessível sem login" : "Acesso remoto desativado";
-        showMsg(txt, remoteAccessEnabled ? "ok" : "info");
-        try { localStorage.setItem("lexis_remote_access", remoteAccessEnabled ? "1" : "0"); } catch(_) {}
-      });
-      try { if (localStorage.getItem("lexis_remote_access") === "1") { remoteAccessEnabled = true; btnRemote.classList.add("active"); btnRemote.setAttribute("aria-pressed", "true"); } } catch(_) {}
-    }
-
-    if (btnLocal) {
-      btnLocal.onclick = function () {
-        localMode = true;
-        sess = null; rowsAll = [];
-        try { localStorage.removeItem(LS.sess); } catch (e) {}
-        applySessionUI();
-        toast("Modo local — sem separação por usuário");
-        showMsg("Modo local (sem servidor).", "info");
-      };
-    }
-
-    if (btnRequest) {
-      btnRequest.onclick = function (e) { e.preventDefault(); toast("Redirecionando para solicitação de instância..."); };
-    }
-
-    var lo = $("btnLogout");
-    if (lo) lo.onclick = logout;
-    var eqNew = $("btnEqNew");
-    if (eqNew) eqNew.onclick = novoUsuario;
-    var eqRef = $("btnEqRefresh");
-    if (eqRef) eqRef.onclick = loadEquipe;
-
-    try { if (emailEl) setTimeout(function () { emailEl.focus(); }, 100); } catch(_) {}
   }
   function bindRows() {
     document.body.addEventListener("click", function (e) {
@@ -2288,7 +1672,7 @@
       var c = findById(id);
       if (!c) return;
       if (act === "atend") openAtend(id);
-      if (act === "edit" || act === "sugerir") openEdit(id);
+      if (act === "edit") openEdit(id);
       if (act === "desfazer") {
         c.situacao = "EM ANDAMENTO";
         c.statusManual = "Automatico";
@@ -2323,39 +1707,23 @@
     $("edCancel").onclick = function () { $("modalEdit").classList.remove("show"); };
     $("edSave").onclick = saveEdit;
     $("edDelete").onclick = deleteEdit;
-    ["qFila", "qCasos"].forEach(function (id) {
+    ["qFila", "qCasos", "filtroFila", "filtroCasos"].forEach(function (id) {
       var el = $(id);
       if (el) {
         el.addEventListener("input", function () {
-          if (id === "qFila") renderFila();
-          if (id === "qCasos") renderCasos();
+          if (id === "qFila" || id === "filtroFila") renderFila();
+          if (id === "qCasos" || id === "filtroCasos") renderCasos();
+        });
+        el.addEventListener("change", function () {
+          if (id === "qFila" || id === "filtroFila") renderFila();
+          if (id === "qCasos" || id === "filtroCasos") renderCasos();
         });
       }
     });
-    ["tfFiltro", "tfPrazo", "tfMeusHoje", "tfSoloMeta"].forEach(function (id) {
-      var el = $(id);
-      if (el) el.addEventListener("change", function () { renderFila(); });
-    });
-    var ta = $("tfMetaAdd"), ts = $("tfMetaSub");
-    if (ta) ta.onclick = function () { tfMetaSet(tfMetaV() + 5); renderFila(); };
-    if (ts) ts.onclick = function () { tfMetaSet(Math.max(5, tfMetaV() - 5)); renderFila(); };
-    var rp = $("repPeriod");
-    if (rp) rp.onchange = function () { renderDossie(); };
-    document.querySelectorAll(".ag-v").forEach(function (b) {
-      b.onclick = function () { agView = b.getAttribute("data-agv"); renderAgenda(); };
-    });
-    var ap = $("agPrev"), an = $("agNext"), at = $("agToday");
-    if (ap) ap.onclick = function () { agAnchor.setDate(agAnchor.getDate() - (agView === "semana" ? 7 : 1)); renderAgenda(); };
-    if (an) an.onclick = function () { agAnchor.setDate(agAnchor.getDate() + (agView === "semana" ? 7 : 1)); renderAgenda(); };
-    if (at) at.onclick = function () { agAnchor.setHours(12, 0, 0, 0); renderAgenda(); };
   }
 
   /* ============================ init ============================ */
   loadCfg();
-  try {
-    var _dbgRaw = localStorage.getItem(LS.dbg);
-    if (_dbgRaw) { var _arr = JSON.parse(_dbgRaw); if (Array.isArray(_arr) && _arr.length) syncLog = _arr; }
-  } catch (e) {}
   renderConfig();
   bindNav();
   bindCommon();
@@ -2365,7 +1733,6 @@
   bindNotas();
   bindConfig();
   bindRows();
-  bindLogin();
   bindModal();
 
   try {
@@ -2383,26 +1750,8 @@
     }).catch(function () {});
   }
   loadFromDisk().then(function () {
-    sess = loadSess();
-    applySessionUI();
     if ($("sheetsUrl") && cfg.url) $("sheetsUrl").value = cfg.url;
-    if (!localMode && cfg.webhook && !sess) {
-      askLogin();
-    } else if (sess && sess.token && cfg.webhook) {
-      setSyncPill("sessão restaurada", "");
-      api("auto", {}).then(function (r) {
-        if (r && r.ok && r.json && r.json.ok) {
-          logSync("sessão: revalidada", sess.usuario);
-          syncAll();
-        } else {
-          logSync("sessão: expirada", ((r && r.json && r.json.error) || "?"));
-          logout();
-        }
-      }).catch(function () {
-        logSync("sessão: sem rede", "will revalidar no proximo sync");
-        if (cfg.url && window.lexisOffline) syncAll();
-      });
-    } else if (cfg.url && window.lexisOffline) {
+    if (cfg.url && window.lexisOffline) {
       setSyncPill("planilha vinculada", "");
       var manual = localStorage.getItem("lexis_g_auto") || "off";
       if (manual === "on") syncAll();

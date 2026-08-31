@@ -152,146 +152,11 @@ label.lbl{display:block;font-size:.64rem;font-weight:700;color:var(--muted);marg
 .modal h3{margin:0 0 .4rem;font-size:1rem;font-weight:800}
 .toast{position:fixed;bottom:1.2rem;right:1.2rem;background:#111c1a;color:#d9fff0;border:1px solid rgba(15,157,111,.5);padding:.65rem 1rem;border-radius:.6rem;font-size:.75rem;font-weight:600;z-index:99;opacity:0;transition:.25s;pointer-events:none;max-width:min(420px,90vw)}
 .toast.show{opacity:1}
-.ag-v{margin:0 .25rem}.ag-v.active{background:var(--accent);color:#fff}
-.ag-grid{display:flex;gap:.5rem;overflow-x:auto;padding-bottom:.4rem}
-.ag-day{flex:1 1 0;min-width:150px;background:var(--elev);border:1px solid var(--border);border-radius:10px;overflow:hidden;display:flex;flex-direction:column}
-.ag-day.ag-today{border-color:var(--accent)}
-.ag-day.ag-past{opacity:.55}
-.ag-head{display:flex;justify-content:space-between;align-items:center;gap:.3rem;padding:.45rem .6rem;background:rgba(128,128,128,.08);border-bottom:1px solid var(--border)}
-.ag-head b{font-size:.78rem}.ag-head small{color:var(--atencao);font-size:.62rem}
-.ag-day.ag-today .ag-head{background:rgba(15,157,111,.12)}
-.ag-body{padding:.4rem;display:flex;flex-direction:column;gap:.35rem}
-.ag-item{background:var(--bg);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:8px;padding:.35rem .5rem}
-.ag-item .row-actions{margin-top:.25rem;display:flex;gap:.3rem;flex-wrap:wrap}
-.task-group .table-wrap{margin-top:.5rem}
-.overlay{position:fixed;inset:0;z-index:300;background:rgba(6,8,14,.94);display:flex;align-items:center;justify-content:center;padding:1rem}
-.overlay.hidden{display:none}
-.overlay .card{background:var(--elev);border:1px solid var(--border);border-radius:14px;box-shadow:0 24px 80px rgba(0,0,0,.5)}
-.overlay .card h2{margin-top:0}
 .ok-msg{color:var(--prazook)} .err-msg{color:var(--vencido)}
-.err-badge{color:var(--vencido);font-weight:600}
-.mini-btn{background:var(--surface);border:1px solid var(--border);color:var(--accent);border-radius:8px;padding:.22rem .6rem;font-size:.78rem;cursor:pointer}
-.mini-btn:hover{border-color:var(--accent)}
-.pill.rose{color:var(--crit);border-color:rgba(217,70,239,.45)}
-/* ===== Login Elite v3 ===== */
-:root{--primary:#00d1ff;--primary-600:#00a3cc;--bg:#080c16;--card:#0e1420;--border:#1e2a3a;--text:#e8eef6;--muted:#7a8ba8;--accent:#00d1ff}
-.login-root{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.5rem;background:linear-gradient(135deg,#080c16 0%,#0b1220 50%,#080c16 100%);position:relative;overflow:hidden;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,sans-serif}
-.login-root::before,.login-root::after{content:"";position:absolute;border-radius:50%;filter:blur(120px);opacity:.35;pointer-events:none;animation:pulse 8s ease-in-out infinite}
-.login-root::before{width:30rem;height:30rem;top:-12rem;left:-8rem;background:linear-gradient(135deg,#00d1ff,#0066cc);animation-delay:0s}
-.login-root::after{width:34rem;height:34rem;bottom:-14rem;right:-8rem;background:linear-gradient(135deg,#00d1ff,#0099ff);animation-delay:4s}
-@keyframes pulse{0%,100%{transform:scale(1);opacity:.35}50%{transform:scale(1.1);opacity:.25}}
-.login-bg-text{position:absolute;inset:0;pointer-events:none;user-select:none;opacity:.03;font-weight:900;font-size:24rem;line-height:1;color:var(--text);display:flex;align-items:center;justify-content:center;flex-direction:column}
-.login-bg-text span:first-child{transform:translate(-20%,-30%)}
-.login-bg-text span:last-child{transform:translate(20%,30%)}
-.login-card{width:100%;max-width:420px;background:rgba(14,20,32,.85);backdrop-filter:blur(24px);border:1px solid var(--border);border-radius:1.5rem;box-shadow:0 24px 80px rgba(0,0,0,.5),0 0 0 1px rgba(0,209,255,.08) inset;overflow:hidden;animation:cardIn .7s cubic-bezier(.16,1,.3,1)}
-@keyframes cardIn{from{opacity:0;transform:scale(.95) translateY(24px)}to{opacity:1;transform:none}}
-.login-header{text-align:center;padding:2.5rem 2rem 1.5rem;position:relative}
-.login-logo{width:80px;height:80px;border-radius:1.25rem;border:2px solid var(--border);background:rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;margin:0 auto 1.25rem;box-shadow:12px 12px 0 rgba(0,209,255,.25);animation:logoIn .7s .1s cubic-bezier(.16,1,.3,1) both}
-@keyframes logoIn{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:none}}
-.login-logo svg{width:40px;height:40px;color:var(--primary)}
-.login-title{font-size:1.75rem;font-weight:900;text-transform:uppercase;letter-spacing:-.03em;color:var(--text);margin:0 0 .25rem}
-.login-title span{color:var(--primary)}
-.login-subtitle{font-size:.625rem;font-weight:900;text-transform:uppercase;letter-spacing:.4em;color:var(--muted)}
-.login-form{padding:0 2rem 2rem;display:flex;flex-direction:column;gap:1.5rem}
-.login-field{display:flex;flex-direction:column;gap:.5rem}
-.login-field-label{font-size:.625rem;font-weight:900;text-transform:uppercase;letter-spacing:.15em;color:var(--muted)}
-.login-input-wrap{position:relative}
-.login-input-icon{position:absolute;left:.875rem;top:50%;transform:translateY(-50%);width:1rem;height:1rem;color:var(--muted);transition:color .2s}
-.login-input-wrap:focus-within .login-input-icon{color:var(--primary)}
-.login-input{width:100%;height:3rem;padding:0 1rem 0 3rem;border:1px solid var(--border);border-radius:.75rem;background:rgba(0,0,0,.25);color:var(--text);font-size:.75rem;font-weight:600;letter-spacing:.1em;outline:none;transition:border-color .2s,box-shadow .2s}
-.login-input::placeholder{color:var(--muted);font-weight:600;letter-spacing:.2em}
-.login-input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(0,209,255,.15)}
-.login-btn{height:3.5rem;border-radius:.75rem;font-size:.6875rem;font-weight:900;text-transform:uppercase;letter-spacing:.35em;display:flex;align-items:center;justify-content:center;gap:.5rem;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
-.login-btn-primary{width:100%;background:linear-gradient(135deg,var(--primary),#0099cc);color:#000;border:none;box-shadow:0 4px 20px rgba(0,209,255,.3)}
-.login-btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 28px rgba(0,209,255,.4)}
-.login-btn-primary:active{transform:translateY(0)}
-.login-btn-primary:disabled{opacity:.6;cursor:not-allowed;transform:none}
-.login-btn-secondary{width:100%;background:transparent;color:var(--muted);border:1px solid var(--border)}
-.login-btn-secondary:hover{border-color:var(--primary);color:var(--primary)}
-.login-btn-ghost{width:100%;background:transparent;color:var(--muted);border:none;padding:.75rem;font-size:.625rem;font-weight:900;text-transform:uppercase;letter-spacing:.25em}
-.login-btn-ghost:hover{color:var(--text)}
-.login-loader{width:1rem;height:1rem;border:2px solid transparent;border-top-color:#000;border-radius:50%;animation:spin .8s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-.login-footer{padding:1.25rem 2rem 2rem;background:rgba(0,0,0,.2);border-top:1px solid var(--border);text-align:center}
-.login-footer-link{display:block;font-size:.5625rem;font-weight:900;text-transform:uppercase;letter-spacing:.25em;color:var(--muted);transition:color .2s}
-.login-footer-link:hover{color:var(--primary)}
-.login-copyright{margin-top:1.5rem;display:flex;flex-direction:column;align-items:center;gap:.5rem;opacity:.6}
-.login-copyright-row{display:flex;align-items:center;gap:.5rem;font-size:.625rem;font-weight:900;text-transform:uppercase;letter-spacing:.15em;color:var(--muted)}
-.login-copyright-row svg{width:.625rem;height:.625rem}
-.login-copyright-small{font-size:.5rem;font-weight:900;text-transform:uppercase;letter-spacing:.25em;color:var(--muted)}
-.login-msg{min-height:1.25rem;font-size:.7rem;font-weight:600;text-align:center;transition:color .2s,opacity .2s}
-.login-msg.ok{color:#22c55e}
-.login-msg.err{color:#ef4444}
-.login-msg.info{color:var(--primary)}
-.login-token-field{display:none}
-.login-token-field.visible{display:flex;animation:fadeIn .3s ease}
-@keyframes fadeIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
-.login-toggle-row{display:flex;align-items:center;justify-content:space-between;font-size:.625rem;font-weight:900;text-transform:uppercase;letter-spacing:.15em;color:var(--muted);padding:.25rem 0}
-.login-toggle{width:2.5rem;height:1.25rem;border-radius:999px;background:var(--border);border:1px solid var(--border);position:relative;cursor:pointer;transition:background .2s}
-.login-toggle::after{content:"";position:absolute;top:2px;left:2px;width:.875rem;height:.875rem;border-radius:50%;background:var(--muted);transition:all .2s}
-.login-toggle.active{background:var(--primary);border-color:var(--primary)}
-.login-toggle.active::after{left:calc(100% - 2px - .875rem);background:#000}
-</style>
 </style>
 </head>
 <body>
-<div class="overlay" id="loginOverlay">
-  <div class="login-root" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
-    <div class="login-bg-text" aria-hidden="true"><span>LEXIS</span><span>PREDICT</span></div>
-    <div class="login-card">
-      <div class="login-header">
-        <div class="login-logo" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M5 7H3M19 7h2M5 13H3M19 13h2M5 5l-2-2M19 5l2-2"/><path d="m12 3-4 6h8Z"/></svg>
-        </div>
-        <h1 id="loginTitle" class="login-title">LexisPredict <span>Elite</span></h1>
-        <p class="login-subtitle">W1 Capital • Advanced Legal Ops</p>
-      </div>
-      <form id="loginForm" class="login-form" novalidate>
-        <div class="login-field">
-          <label class="login-field-label" for="loginEmail">E-mail Corporativo</label>
-          <div class="login-input-wrap">
-            <svg class="login-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
-            <input type="email" id="loginEmail" class="login-input" placeholder="USUARIO@W1CAPITAL.COM" autocomplete="email" required spellcheck="false" autocapitalize="off">
-          </div>
-        </div>
-        <div class="login-field">
-          <label class="login-field-label" for="loginPass">Senha de Segurança</label>
-          <div class="login-input-wrap">
-            <svg class="login-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            <input type="password" id="loginPass" class="login-input" placeholder="••••••••" autocomplete="current-password" required spellcheck="false">
-          </div>
-        </div>
-        <div class="login-field login-token-field" id="loginTokenField">
-          <label class="login-field-label" for="loginToken">Token de Liberação</label>
-          <div class="login-input-wrap">
-            <svg class="login-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
-            <input type="password" id="loginToken" class="login-input" placeholder="Azadsd5a96d5.6as5sa2d652as+94s9" autocomplete="off" spellcheck="false">
-          </div>
-        </div>
-        <p class="login-msg" id="loginMsg" aria-live="polite"></p>
-        <button type="submit" class="login-btn login-btn-primary" id="btnLogin">
-          <span id="btnLoginText">Acessar Sistema</span>
-          <svg id="btnLoginLoader" class="login-loader" style="display:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/></svg>
-          <svg id="btnLoginArrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-        </button>
-        <button type="button" class="login-btn login-btn-secondary" id="btnLoginConfig" title="Configurar webhook/token antes do login">Configurar</button>
-        <div class="login-toggle-row">
-          <span>Acesso remoto sem login</span>
-          <button type="button" class="login-toggle" id="btnRemoteAccess" aria-pressed="false" aria-label="Permitir acesso de outros dispositivos sem login"></button>
-        </div>
-        <button type="button" class="login-btn login-btn-ghost" id="btnLoginLocal" title="Só para uso sem internet; sem separação de usuários">Entrar em modo local (sem servidor)</button>
-      </form>
-      <div class="login-footer">
-        <a href="#" class="login-footer-link" id="btnRequestInstance">Solicitar Nova Instância SaaS</a>
-        <div class="login-copyright">
-          <div class="login-copyright-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M14.5 9a6.5 6.5 0 1 1-5 0"/></svg>2026 W1 Capital.</div>
-          <p class="login-copyright-small">Fundador Davi Alves Figueredo</p>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-<div class="app">
+<div class="app" id="appMain" style="display:none">
   <aside class="side" id="side">
     <div class="brand">
       <div class="logo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></svg></div>
@@ -315,9 +180,8 @@ label.lbl{display:block;font-size:.64rem;font-weight:700;color:var(--muted);marg
       <button type="button" class="nav" data-nav="veredito"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M5 7H3M19 7h2M5 13H3M19 13h2M5 5l-2-2M19 5l2-2"/><path d="m12 3-4 6h8Z"/></svg><span>Veredito</span></button>
       <button type="button" class="nav" data-nav="scanner"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 12h10"/></svg><span>Scanner DataJud+DJEN</span></button>
       <button type="button" class="nav" data-nav="notas"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7Z"/><path d="M9 9h6M9 13h6M9 17h4"/></svg><span>Notas</span></button>
-
-      <button type="button" class="nav" id="navEquipe" style="display:none" data-nav="equipe"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>Equipe</span></button>
       <div class="nav-sec">Sistema</div>
+      <button type="button" class="nav" data-nav="equipe" id="navEquipe" style="display:none"><span>Equipe</span></button>
       <button type="button" class="nav" data-nav="config"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg><span>Configurações</span></button>
     </div>
     <div class="side-foot">
@@ -325,8 +189,12 @@ label.lbl{display:block;font-size:.64rem;font-weight:700;color:var(--muted);marg
         <span class="pill" id="connPill">local</span>
         <span class="pill" id="capPill">0 proc.</span>
       </div>
-      <span id="verTxt">Lexis Gabinete v6.2</span>
-      <button type="button" class="btn btn-sm" style="margin-top:.4rem" id="btnSidebar">‹ recolher</button>
+      <div id="userInfo" style="margin-bottom:.35rem;font-weight:700;font-size:.7rem"></div>
+      <span id="verTxt">Lexis Gabinete v6.0</span>
+      <div style="display:flex;gap:.3rem;margin-top:.4rem">
+        <button type="button" class="btn btn-sm" id="btnSidebar">‹ recolher</button>
+        <button type="button" class="btn btn-sm" id="btnLogout" style="color:var(--vencido)">Sair</button>
+      </div>
     </div>
   </aside>
 
@@ -335,8 +203,6 @@ label.lbl{display:block;font-size:.64rem;font-weight:700;color:var(--muted);marg
       <div class="ttl"><h1 id="pageTitle">Painel da carteira</h1><small id="pageSub">Visão geral</small></div>
       <div class="sp"></div>
       <span class="pill" id="syncPill">não sincronizado</span>
-      <span class="pill" id="userChip">—</span>
-      <button type="button" class="btn" id="btnLogout" style="display:none">Sair</button>
       <button type="button" class="btn" id="btnSync" title="Sincronizar com a planilha (puxa atualizações e envia pendências)">Sincronizar</button>
       <button type="button" class="btn btn-pri" id="btnSaveDisk">Salvar PC</button>
       <button type="button" class="btn" id="btnTheme" title="Tema claro/escuro">&#9681;</button>
@@ -347,7 +213,7 @@ label.lbl{display:block;font-size:.64rem;font-weight:700;color:var(--muted);marg
         <div class="kpis" id="kpiRow"></div>
         <div class="grid2">
           <div class="card">
-            <h2>Fila de contato (vencidos + hoje)</h2>
+            <h2>Fila crítica (vencidos + hoje)</h2>
             <div class="table-wrap" id="critTable"></div>
           </div>
           <div>
@@ -379,35 +245,19 @@ label.lbl{display:block;font-size:.64rem;font-weight:700;color:var(--muted);marg
       </section>
 
       <section class="panel" id="p-fila">
-        <div class="kpis" id="filaKpis"></div>
-        <div class="toolbar" id="filaToolbar">
-          <input id="qFila" placeholder="Pesquisar cliente ou CNJ…" style="flex:1;min-width:180px"/>
-          <select id="tfPrazo" style="width:auto">
-            <option value="score">Score ops</option>
-            <option value="vencid">Mais vencido</option>
-            <option value="prazo">Próximo prazo</option>
-            <option value="az">Cliente A–Z</option>
-          </select>
-          <select id="tfFiltro" style="width:auto">
-            <option value="todos">Toda a fila</option>
-            <option value="novidade">Novidade identificada</option>
-            <option value="vencido">Vencidos</option>
+        <div class="toolbar">
+          <input id="qFila" placeholder="Buscar cliente, CNJ, telefone…" style="flex:1;min-width:180px"/>
+          <select id="filtroFila" style="width:auto">
+            <option value="fila">Fila crítica (vencido + hoje)</option>
+            <option value="vencido">Só vencidos</option>
             <option value="hoje">É hoje</option>
-            <option value="ba">Busca e apreensão</option>
-            <option value="parados">Parados ≥60d</option>
-            <option value="sil45">Silêncio ≥45d</option>
-            <option value="cumpr">Cumprimento</option>
-            <option value="tranquilos">Casos tranquilos</option>
+            <option value="atencao">Atenção (≤3 dias)</option>
+            <option value="prioridade">Todas por prioridade</option>
+            <option value="ativos">Todos ativos</option>
           </select>
-          <label class="lbl" style="display:flex;align-items:center;gap:.4rem;width:auto"><input type="checkbox" id="tfMeusHoje" style="width:auto"/> Meus hoje</label>
         </div>
-        <div id="filaCards"></div>
-        <div class="toolbar" style="justify-content:flex-end;gap:.4rem">
-          <span class="pill" id="tfMetaInfo">Meta do dia · 10</span>
-          <button type="button" class="btn btn-sm" id="tfMetaSub">−5</button>
-          <button type="button" class="btn btn-sm" id="tfMetaAdd">+5</button>
-          <label class="lbl" style="display:flex;align-items:center;gap:.4rem;width:auto"><input type="checkbox" id="tfSoloMeta" style="width:auto"/> Só a meta (esconde o resto)</label>
-        </div>
+        <div class="kpis" id="filaKpis"></div>
+        <div class="table-wrap" id="filaTable"></div>
       </section>
 
       <section class="panel" id="p-casos">
@@ -455,21 +305,39 @@ label.lbl{display:block;font-size:.64rem;font-weight:700;color:var(--muted);marg
       </section>
 
       <section class="panel" id="p-agenda">
+        <div class="hint">Próximo retorno dos próximos 7 dias. Clique em Atender para remarcar (a alteração volta para a planilha).</div>
         <div class="kpis" id="agKpis"></div>
-        <div class="toolbar">
-          <button type="button" class="btn btn-sm ag-v active" data-agv="semana">Semana</button>
-          <button type="button" class="btn btn-sm ag-v" data-agv="dia">Dia</button>
-          <button type="button" class="btn btn-sm ag-v" data-agv="lista">Lista</button>
-          <span style="flex:1"></span>
-          <span class="pill" id="agWeekLabel">—</span>
-          <button type="button" class="btn btn-sm" id="agPrev">‹</button>
-          <button type="button" class="btn btn-sm" id="agToday">Hoje</button>
-          <button type="button" class="btn btn-sm" id="agNext">›</button>
-        </div>
-        <div id="agWeek"></div>
-        <div id="agDay" style="display:none"></div>
-        <div id="agList" style="display:none"></div>
+        <div class="table-wrap" id="agendaTable"></div>
       </section>
+
+      
+<section class="panel" id="p-equipe">
+  <h2 style="margin-top:0">Equipe</h2>
+  <p class="hint">Logins e cargos — planilha Usuarios + JSON local. Senha só via app (hash).</p>
+  <div class="grid2" style="gap:12px;margin-bottom:16px">
+    <div class="field"><label class="lbl">Login</label><input id="eqLogin"/></div>
+    <div class="field"><label class="lbl">Nome</label><input id="eqNome"/></div>
+    <div class="field"><label class="lbl">Senha</label><input id="eqSenha" type="password"/></div>
+    <div class="field"><label class="lbl">Perfil</label>
+      <select id="eqPerfil">
+        <option value="operador">operador</option>
+        <option value="assistente">assistente</option>
+        <option value="administrador">administrador</option>
+        <option value="supervisor">supervisor</option>
+        <option value="superadmin">superadmin</option>
+      </select>
+    </div>
+    <div class="field"><label class="lbl">Escritório</label><input id="eqEsc"/></div>
+    <div class="field"><label class="lbl">E-mail</label><input id="eqEmail"/></div>
+  </div>
+  <button type="button" class="btn btn-pri" id="eqCreate">Criar usuário</button>
+  <div class="grid2" style="gap:12px;margin-top:16px;margin-bottom:16px">
+    <div class="field"><label class="lbl">Login (usuário para redefinir)</label><input id="eqResetLogin"/></div>
+    <div class="field"><label class="lbl">Nova senha</label><input id="eqResetSenha" type="password"/></div>
+  </div>
+  <button type="button" class="btn" id="eqResetPwd" style="color:var(--atencao)">Redefinir senha</button>
+  <div class="table-wrap" id="eqTable" style="margin-top:16px"></div>
+</section>
 
       <section class="panel" id="p-import">
         <div class="card">
@@ -594,45 +462,13 @@ label.lbl{display:block;font-size:.64rem;font-weight:700;color:var(--muted);marg
       </section>
 
       <section class="panel" id="p-dossie">
-        <div class="toolbar">
-          <span class="pill">Relatório operacional · v6.2</span>
-          <select id="repPeriod" style="width:auto">
-            <option value="semana">Esta semana</option>
-            <option value="anterior">Semana passada</option>
-            <option value="mes">Mês atual</option>
-            <option value="all">Tudo acumulado</option>
-          </select>
-          <span style="flex:1"></span>
-          <button type="button" class="btn btn-pri" id="btnReport">Gerar relatório</button>
-          <button type="button" class="btn" id="btnReportPdf" title="Baixa o dossiê completo em PDF (A4)">Salvar PDF</button>
-          <button type="button" class="btn" id="btnCopyReport">Copiar</button>
-          <button type="button" class="btn" id="btnExportReport">Salvar TXT</button>
-        </div>
-        <div class="kpis" id="repKpis"></div>
         <div class="card">
-          <h2>Atendimentos · por dia</h2>
-          <div id="repDias"></div>
-        </div>
-        <div class="card">
-          <h2>Top criticidade (10)</h2>
-          <div class="table-wrap" id="repCrit"></div>
-        </div>
-        <div class="grid2">
-          <div class="card">
-            <h2>Top encerramento</h2>
-            <div class="table-wrap" id="repEncerra"></div>
+          <h2>Dossiê operacional</h2>
+          <div class="toolbar">
+            <button type="button" class="btn btn-pri" id="btnReport">Gerar relatório</button>
+            <button type="button" class="btn" id="btnCopyReport">Copiar</button>
+            <button type="button" class="btn" id="btnExportReport">Salvar TXT</button>
           </div>
-          <div class="card">
-            <h2>Parados há 60+ dias</h2>
-            <div class="table-wrap" id="repParados"></div>
-          </div>
-        </div>
-        <div class="card">
-          <h2>Mérito · salvos / sentenciados</h2>
-          <div class="table-wrap" id="repMerito"></div>
-        </div>
-        <div class="card">
-          <h2>Texto simples (colar/arquivar)</h2>
           <div class="mono" id="reportOut">Clique em Gerar relatório.</div>
         </div>
       </section>
@@ -652,38 +488,6 @@ label.lbl{display:block;font-size:.64rem;font-weight:700;color:var(--muted);marg
         </div>
       </section>
 
-      <section class="panel" id="p-equipe">
-        <div class="grid2">
-          <div class="card">
-            <h2>Novo usuário</h2>
-            <div class="field"><label class="lbl">Login (minúsculas, sem espaço)</label><input id="eqLogin" placeholder="ex: maria"/></div>
-            <div class="field"><label class="lbl">Nome</label><input id="eqNome" placeholder="Nome exibido no app"/></div>
-            <div class="field"><label class="lbl">Senha (mínimo 4 caracteres)</label><input type="password" id="eqSenha" placeholder="senha inicial"/></div>
-            <div class="field">
-              <label class="lbl">Perfil</label>
-              <select id="eqPerfil">
-                <option value="assistente">assistente — só seus casos</option>
-                <option value="atendente">atendente — só seus casos</option>
-                <option value="responsavel">responsavel — só seus casos</option>
-                <option value="supervisor">supervisor — vê a empresa toda, cria/banir usuário</option>
-                <option value="superadmin">superadmin — tudo, incluindo perfis mais altos</option>
-              </select>
-            </div>
-            <div class="field"><label class="lbl">Escritório (opcional)</label><input id="eqEscritorio" placeholder="ex: unidade centro"/></div>
-            <div class="toolbar">
-              <button type="button" class="btn btn-pri" id="btnEqNew">Criar usuário</button>
-              <button type="button" class="btn" id="btnEqRefresh">Atualizar</button>
-            </div>
-            <p class="hint">A senha é gravada como hash SHA-256 na aba Usuarios da planilha.</p>
-          </div>
-          <div class="card">
-            <h2>Usuários da empresa</h2>
-            <p class="hint" id="eqStatus">—</p>
-            <div id="eqTable" class="hint">Nenhum usuário carregado.</div>
-          </div>
-        </div>
-      </section>
-
       <section class="panel" id="p-config">
         <div class="card">
           <h2>Vínculo com a planilha (2 vias)</h2>
@@ -697,13 +501,11 @@ label.lbl{display:block;font-size:.64rem;font-weight:700;color:var(--muted);marg
             <button type="button" class="btn" id="btnSaveCfg">Salvar</button>
           </div>
           <p class="hint" id="cfgStatus"></p>
-          <p class="hint" id="cfgLastSync">Sem sincronização registrada.</p>
         </div>
         <div class="card">
           <h2>Sobre</h2>
-          <p class="hint">Lexis Gabinete v6.2 — clone desktop do LexisPredict (Vercel), dados via Google Sheets. Login por usuário: cada pessoa só vê os próprios casos (Responsável) e a aba Processos da empresa mostra todos. DataJud/DJEN e cloud requerem internet; o resto funciona offline. Abra sempre pelo EXE.</p>
+          <p class="hint">Lexis Gabinete v6.0 — clone desktop do LexisPredict (Vercel), dados via Google Sheets. DataJud/DJEN e cloud requerem internet; o resto funciona offline e sincroniza depois. Abra sempre pelo EXE.</p>
           <p class="hint" id="pathInfo">DB: —</p>
-          <p class="hint">Segurança: a leitura agora é autenticada pelo webhook (você recebe só os seus casos). A aba 'Usuarios' da planilha guarda login/senha (hash SHA-256). Casos sem Responsável aparecem para todos.</p>
         </div>
       </section>
 
@@ -738,7 +540,6 @@ label.lbl{display:block;font-size:.64rem;font-weight:700;color:var(--muted);marg
       <div class="field"><label class="lbl">Tribunal</label><input id="edTribunal"/></div>
       <div class="field"><label class="lbl">Advogado</label><input id="edAdvogado"/></div>
       <div class="field"><label class="lbl">Escritório</label><input id="edEscritorio"/></div>
-      <div class="field"><label class="lbl">Responsável (dono)</label><input id="edResponsavel" placeholder="login ou nome do usuário dono"/></div>
       <div class="field"><label class="lbl">Situação</label><input id="edSituacao" placeholder="EM ANDAMENTO"/></div>
       <div class="field"><label class="lbl">Status manual</label>
         <select id="edStatusManual"><option value="Automatico">Automático</option><option value="Caso Crítico">Caso Crítico</option><option value="Encerrado">Encerrado</option><option value="Arquivado">Arquivado</option></select>
@@ -756,6 +557,176 @@ label.lbl{display:block;font-size:.64rem;font-weight:700;color:var(--muted);marg
 </div>
 
 <div class="toast" id="toast"></div>
+<div id="authGate" style="display:flex;position:fixed;inset:0;z-index:9999;background:#0B1220;color:#fafafa;align-items:center;justify-content:center;flex-direction:column;gap:12px;padding:24px">
+  <div style="width:min(400px,100%);background:#111827;border:1px solid #334155;border-radius:16px;padding:24px;box-shadow:0 20px 50px rgba(0,0,0,.5)">
+    <h2 style="margin:0 0 4px;font-size:1.15rem">Lexis Gabinete</h2>
+    <p style="margin:0 0 16px;color:#94a3b8;font-size:.85rem">Entrar com login e senha</p>
+    <label style="font-size:11px;color:#94a3b8">Login ou e-mail</label>
+    <input id="authLogin" style="width:100%;margin:4px 0 10px;padding:10px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#fff"/>
+    <label style="font-size:11px;color:#94a3b8">Senha</label>
+    <input id="authSenha" type="password" style="width:100%;margin:4px 0 10px;padding:10px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#fff"/>
+    <label style="font-size:11px;color:#94a3b8">Webhook planilha (opcional)</label>
+    <input id="authWebhook" placeholder="https://script.google.com/.../exec" style="width:100%;margin:4px 0 10px;padding:10px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#fff;font-size:12px"/>
+    <button type="button" id="authBtn" style="width:100%;padding:12px;border:0;border-radius:10px;background:#059669;color:#fff;font-weight:800;cursor:pointer">Entrar</button>
+    <button type="button" id="authBootstrap" style="width:100%;margin-top:8px;padding:10px;border:1px solid #475569;border-radius:10px;background:transparent;color:#94a3b8;font-size:12px;cursor:pointer">Primeiro acesso: criar superadmin local</button>
+    <p id="authErr" style="color:#f87171;font-size:12px;min-height:1.2em;margin:8px 0 0"></p>
+  </div>
+</div>
+
 <script src="app.js"></script>
+<script>
+(function authEquipeBoot() {
+  var gate = document.getElementById("authGate");
+  var api = window.lexisOffline;
+  if (!api || !api.authLogin) {
+    console.warn("auth IPC ausente — aplique preload + main snippets");
+    return;
+  }
+
+  function webhook() {
+    var el = document.getElementById("authWebhook");
+    return (el ? el.value : "").trim() || localStorage.getItem("lexis_g_webhook") || "";
+  }
+
+  async function showApp() {
+    if (gate) gate.style.display = "none";
+    var appMain = document.getElementById("appMain");
+    if (appMain) appMain.style.display = "flex";
+    var sess = (await api.authSession()).session;
+    window.__lexisSession = sess;
+    var navEq = document.getElementById("navEquipe");
+    if (navEq && sess && /superadmin|supervisor/i.test(sess.perfil || "")) {
+      navEq.style.display = "";
+    }
+    var userInfo = document.getElementById("userInfo");
+    if (userInfo && sess) {
+      userInfo.textContent = sess.nome || sess.login || "";
+    }
+    try {
+      if (typeof renderAll === "function") renderAll();
+    } catch (_) {}
+  }
+
+  async function requireAuth() {
+    var s = await api.authSession();
+    if (s && s.session) {
+      await showApp();
+      return;
+    }
+    if (gate) {
+      gate.style.display = "flex";
+      var w = localStorage.getItem("lexis_g_webhook");
+      if (w) {
+        var whEl = document.getElementById("authWebhook");
+        if (whEl) whEl.value = w;
+      }
+    }
+  }
+
+  var authBtn = document.getElementById("authBtn");
+  if (authBtn) authBtn.addEventListener("click", async function() {
+    var errEl = document.getElementById("authErr");
+    errEl.textContent = "";
+    var login = document.getElementById("authLogin").value;
+    var senha = document.getElementById("authSenha").value;
+    var wh = webhook();
+    if (wh) localStorage.setItem("lexis_g_webhook", wh);
+    var token = localStorage.getItem("lexis_g_token") || "w1-fase1-2026";
+    var r = await api.authLogin({ login: login, senha: senha, webhookUrl: wh, token: token });
+    if (!r.ok) {
+      errEl.textContent = r.error || "falha";
+      return;
+    }
+    await showApp();
+  });
+
+  var authBootstrapBtn = document.getElementById("authBootstrap");
+  if (authBootstrapBtn) authBootstrapBtn.addEventListener("click", async function() {
+    var errEl = document.getElementById("authErr");
+    var login = document.getElementById("authLogin").value || "admin";
+    var senha = document.getElementById("authSenha").value || "admin123";
+    var r = await api.authBootstrapSuperadmin({ login: login, senha: senha, nome: "Administrador" });
+    if (!r.ok) {
+      errEl.textContent = r.error || "falha";
+      return;
+    }
+    errEl.style.color = "#4ade80";
+    errEl.textContent = "Superadmin criado. Entrando...";
+    await showApp();
+  });
+
+  var eqResetPwdBtn = document.getElementById("eqResetPwd");
+  if (eqResetPwdBtn) eqResetPwdBtn.addEventListener("click", async function() {
+    var login = document.getElementById("eqResetLogin").value;
+    var novaSenha = document.getElementById("eqResetSenha").value;
+    if (!login || !novaSenha) { alert("Preencha login e nova senha"); return; }
+    var wh = localStorage.getItem("lexis_g_webhook") || "";
+    var token = localStorage.getItem("lexis_g_token") || "w1-fase1-2026";
+    var r = await api.userSetPassword({ login: login, senha: novaSenha, webhookUrl: wh, token: token });
+    alert(r.ok ? "Senha redefinida para " + login : (r.error || "erro"));
+  });
+
+  var eqCreateBtn = document.getElementById("eqCreate");
+  if (eqCreateBtn) eqCreateBtn.addEventListener("click", async function() {
+    var wh = localStorage.getItem("lexis_g_webhook") || "";
+    var r = await api.usersCreate({
+      login: document.getElementById("eqLogin").value,
+      nome: document.getElementById("eqNome").value,
+      senha: document.getElementById("eqSenha").value,
+      perfil: document.getElementById("eqPerfil").value,
+      escritorio: document.getElementById("eqEsc").value,
+      email: document.getElementById("eqEmail").value,
+      webhookUrl: wh,
+      token: localStorage.getItem("lexis_g_token") || "w1-fase1-2026",
+    });
+    alert(r.ok ? "Usuario criado" : r.error || "erro");
+    if (r.ok) loadEquipe();
+  });
+
+  async function loadEquipe() {
+    var box = document.getElementById("eqTable");
+    if (!box) return;
+    var wh = localStorage.getItem("lexis_g_webhook") || "";
+    var token = localStorage.getItem("lexis_g_token") || "w1-fase1-2026";
+    var r = await api.usersList({ webhookUrl: wh, token: token });
+    if (!r.ok) {
+      box.innerHTML = "<p class='hint'>" + (r.error || "") + "</p>";
+      return;
+    }
+    var rows = (r.users || []).map(function(u) {
+      return "<tr><td>" + u.login + "</td><td>" + (u.nome || "") + "</td><td>" + (u.perfil || "") + "</td><td>" + (u.ativo || "") + "</td><td>" + (u.email || "") + "</td></tr>";
+    }).join("");
+    box.innerHTML = "<table><thead><tr><th>Login</th><th>Nome</th><th>Perfil</th><th>Ativo</th><th>E-mail</th></tr></thead><tbody>" + rows + "</tbody></table>";
+  }
+
+  var navEqBtns = document.querySelectorAll("[data-nav='equipe']");
+  for (var i = 0; i < navEqBtns.length; i++) {
+    navEqBtns[i].addEventListener("click", function() { loadEquipe(); });
+  }
+
+  window.lexisCanSeeAllCases = function () {
+    var p = window.__lexisSession && window.__lexisSession.perfil || "";
+    return /superadmin|supervisor/i.test(p);
+  };
+  window.lexisFilterCasesByOwner = function (list) {
+    if (!Array.isArray(list)) return list;
+    if (window.lexisCanSeeAllCases()) return list;
+    var uid = window.__lexisSession && window.__lexisSession.auth_user_id;
+    if (!uid) return list;
+    return list.filter(function(c) { return String(c.created_by || c.createdBy || "") === String(uid); });
+  };
+
+  var logoutBtn = document.getElementById("btnLogout");
+  if (logoutBtn) logoutBtn.addEventListener("click", async function() {
+    await api.authLogout();
+    window.__lexisSession = null;
+    var appMain = document.getElementById("appMain");
+    if (appMain) appMain.style.display = "none";
+    if (gate) gate.style.display = "flex";
+  });
+
+  requireAuth();
+})();
+</script>
 </body>
 </html>
