@@ -31,6 +31,7 @@
     veredito: ["Veredito", "Consulta DataJud + DJEN"],
     scanner: ["Scanner Omnipresente", "Varredura DataJud + DJEN · logs"],
     notas: ["Notas", "Anotações internas"],
+    cadastro: ["Cadastro", "Novos processos · importação manual"],
     config: ["Configurações", "Vínculo com a planilha"]
   };
 
@@ -694,15 +695,17 @@
     h += "<td>" + badge(st) + '</td><td><span class="num">' + esc(c.proximoPrazo || "—") + "</span></td>";
     h += "<td>" + (dias === null ? "—" : '<span class="num" style="color:' + (dias < 0 ? "var(--vencido)" : dias === 0 ? "var(--hoje)" : "var(--muted)") + '">' + dias + "</span>") + "</td>";
     h += '<td><span class="badge ' + f[1] + '">' + f[0] + "</span></td>";
-    if (extraCols) h += extraCols;
+    if (typeof extraCols === "function") h += extraCols(c);
+    else if (extraCols) h += extraCols;
     h += "<td>" + actionsHtml(c) + "</td></tr>";
     return h;
   }
-  function tableHtml(list, cols, extra) {
+  function tableHtml(list, cols, extra, extraHeader) {
     if (!list.length) return '<div class="empty"><b>Nada aqui</b>Importe a planilha em Importar ou ajuste o filtro.</div>';
     var h = "<table><thead><tr>";
     (cols || ["Cliente", "Status", "Retorno", "Dias", "Prioridade"]).forEach(function (c) { h += "<th>" + c + "</th>"; });
-    if (extra) h += "<th>" + extra + "</th>";
+    if (typeof extra === "function") h += "<th>" + (extraHeader || "") + "</th>";
+    else if (extra) h += "<th>" + extra + "</th>";
     h += "<th>Ações</th></tr></thead><tbody>";
     list.forEach(function (r) { h += rowHtml(r, extra); });
     h += "</tbody></table>";
@@ -800,8 +803,32 @@
       if (q && String(c.cliente + " " + c.protocolo + " " + c.telefone).toLowerCase().indexOf(q) < 0) return false;
       return true;
     });
-    var ordered = ft === "prioridade" || ft === "ativos" ? sortByPriority(list) : sortByPriority(list);
-    $("filaTable").innerHTML = tableHtml(ordered.slice(0, 300), ["Cliente", "Status", "Retorno", "Dias", "Prioridade"]);
+    var ordered = sortByPriority(list);
+    var fh = "";
+    ordered.slice(0, 300).forEach(function (c) {
+      var st = statusDe(c);
+      var dias = diasAte(c.proximoPrazo);
+      var f = faixaPrioridade(pesoFila(c));
+      var bc = (st === "Vencido" || st === "Caso Cr\u00edtico") ? "var(--vencido)" : st === "\u00c9 Hoje" ? "var(--hoje)" : st === "Aten\u00e7\u00e3o" ? "var(--atencao)" : "var(--border)";
+      var dc = dias !== null && dias < 0 ? "var(--vencido)" : dias === 0 ? "var(--hoje)" : "var(--muted)";
+      var dt = dias === null ? "\u2014" : (dias < 0 ? Math.abs(dias) + "d vencido" : dias + "d");
+      fh += '<div style="background:var(--card);border:1px solid var(--border);border-left:4px solid ' + bc + ';border-radius:.75rem;padding:.7rem .85rem;margin-bottom:.5rem;transition:all .15s">';
+      fh += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem">';
+      fh += '<div style="min-width:0;flex:1"><div style="font-weight:800;font-size:.78rem;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(c.cliente || "\u2014") + '</div>';
+      fh += '<div style="font-size:6px;color:var(--muted);font-family:monospace;margin-top:2px">' + esc(c.protocolo || "") + '</div></div>';
+      fh += '<div style="display:flex;gap:.3rem;flex-shrink:0">' + badge(st) + '<span class="badge ' + f[1] + '">' + f[0] + '</span></div></div>';
+      fh += '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:.5rem;flex-wrap:wrap;gap:.4rem">';
+      fh += '<div style="font-size:.68rem;color:var(--muted)">Retorno: <b style="color:var(--text)">' + esc(c.proximoPrazo || "\u2014") + '</b></div>';
+      fh += '<div style="font-weight:800;font-size:.72rem;color:' + dc + '">' + dt + '</div></div>';
+      fh += '<div class="row-actions" style="margin-top:.5rem">';
+      fh += '<button type="button" class="btn btn-sm" data-act="atend" data-id="' + esc(c.id) + '">Atender</button>';
+      fh += '<button type="button" class="btn btn-sm" data-act="edit" data-id="' + esc(c.id) + '">Editar</button>';
+      fh += '<button type="button" class="btn btn-sm" data-act="scan" data-id="' + esc(c.id) + '">Scan</button>';
+      if (c.telefone) fh += '<button type="button" class="btn btn-sm" data-act="wa" data-id="' + esc(c.id) + '">WhatsApp</button>';
+      fh += '</div></div>';
+    });
+    if (!ordered.length) fh = '<div class="empty"><b>Fila limpa</b>Nenhum vencido ou retorno para hoje.</div>';
+    $("filaTable").innerHTML = fh;
   }
   function renderCasos() {
     var q = (($("qCasos") && $("qCasos").value) || "").toLowerCase();
@@ -1405,39 +1432,246 @@
 
   /* ============================ dossiê ============================ */
   function buildDossier() {
+    if (!rows.length) {
+      return '<div style="border:1px solid var(--border);border-radius:16px;background:var(--card);padding:48px;text-align:center">' +
+        '<div style="width:64px;height:64px;background:var(--primary-soft);border-radius:999px;display:flex;align-items:center;justify-content:center;margin:0 auto 24px;font-size:28px">📋</div>' +
+        '<div style="font-size:18px;font-weight:900;margin-bottom:8px">Nenhum processo carregado</div>' +
+        '<div style="font-size:12px;color:var(--muted);margin-bottom:24px">Importe a planilha em <b>Importar</b> ou cadastre processos em <b>Cadastro</b> antes de gerar o relatório.</div>' +
+        '<button class="btn btn-pri" onclick="nav(\"import\")" style="margin:0 auto">Ir para Importar</button>' +
+        '</div>';
+    }
     var k = kpisAll();
     var risk = computeRisk(k);
     var hoje = hojeBR();
-    var t = "";
-    t += "═══════════════════════════════════════════\n";
-    t += "   DOSSIÊ OPERACIONAL · LEXIS GABINETE v6.0\n";
-    t += "   " + hoje + "\n";
-    t += "═══════════════════════════════════════════\n\n";
-    t += "RESUMO\n";
-    t += "  Carteira: " + k.total + " | Ativos: " + k.ativos + "\n";
-    t += "  Vencidos: " + k.venc + " | É hoje: " + k.hoje + " | Atenção: " + k.aten + "\n";
-    t += "  Sem prazo: " + k.sem + " | Arquivados: " + k.arq + "\n";
-    t += "  Atendidos hoje: " + k.atendidosHoje + " | Novidades: " + k.nov + "\n";
-    t += "  Baixas tribunal: " + k.baixa + " | Procedentes: " + k.proc + " | Improcedentes: " + k.improc + "\n";
-    t += "  Risco global: " + risk.score + "/100 (" + risk.label + ")\n\n";
-    t += "VENCIDOS + É HOJE (fila crítica · " + (k.venc + k.hoje) + ")\n";
+    var session = window.__lexisSession || {};
+    var operador = session.nome || cfg.oper || "—";
+    var now = new Date();
+    var dataStr = now.toLocaleDateString("pt-BR");
+    var horaStr = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    function ec(s) { return String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+    function badge(st) {
+      var cls = "color:#64748b";
+      if (st === "Vencido" || st === "Caso Critico") cls = "color:#ef4444";
+      else if (st === "Hoje") cls = "color:#3b82f6";
+      else if (st === "Atencao") cls = "color:#f97316";
+      else if (st === "No Prazo") cls = "color:#10b981";
+      return '<span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;background:rgba(0,0,0,.06);' + cls + '">' + ec(st) + '</span>';
+    }
+    function prioBadge(c) {
+      var f = faixaPrioridade(pesoFila(c));
+      return '<span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;background:rgba(0,0,0,.06)">' + ec(f[0]) + '</span>';
+    }
+    var riskColor = risk.score >= 80 ? "#dc2626" : risk.score >= 60 ? "#ef4444" : risk.score >= 40 ? "#f97316" : risk.score >= 20 ? "#eab308" : "#10b981";
+    var crit = sortByPriority(rows.filter(function(c) { var st = statusDe(c); return st === "Vencido" || st === "Hoje" || st === "Caso Critico"; }));
+    var week = rows.filter(function(c) { var st = statusDe(c); if (st === "Arquivado") return false; var d = diasAte(c.proximoPrazo); return d !== null && d >= 0 && d <= 7; });
+    var par = rows.filter(function(c) { var st = statusDe(c); if (st === "Arquivado") return false; var d = diasDesde(c.ultimoRetorno || c.data_distribuicao); return d === null || d >= 60; });
+    var novas = rows.filter(function(c) { return (c.tem_novo_andamento || c.djen_nova_comunicacao) && statusDe(c) !== "Arquivado"; });
+    var cumpr = rows.filter(function(c) { return c.em_cumprimento_sentenca; });
+    var proc = rows.filter(function(c) { return c.is_procedente; });
+    var improc = rows.filter(function(c) { return c.is_improcedente; });
+    var atendidosSemana = rows.filter(function(c) { if (!c.ultimoRetorno || statusDe(c) === "Arquivado") return false; var d = diasDesde(c.ultimoRetorno); return d !== null && d >= 0 && d <= 7; });
+    var recs = [];
+    if (k.venc) recs.push("Priorizar revisao de " + k.venc + " prazo(s) vencido(s).");
+    if (k.hoje) recs.push("Acompanhar " + k.hoje + " caso(s) com prazo hoje.");
+    if (k.nov) recs.push("Responder " + k.nov + " novidade(s) de andamento.");
+    if (k.baixa) recs.push("Confirmar " + k.baixa + " baixa(s) do tribunal.");
+    if (par.length) recs.push("Auditar " + par.length + " processo(s) parado(s).");
+    if (cumpr.length) recs.push("Impulsionar " + cumpr.length + " caso(s) em cumprimento.");
+    if (recs.length === 0) recs.push("Carteira estavel: manter rotina de acompanhamento.");
+    var h = "";
+    h += '<div style="border:1px solid var(--border);border-radius:16px;background:var(--card);padding:40px 48px;margin-bottom:32px;position:relative;overflow:hidden">';
+    h += '<div style="position:absolute;top:-20px;right:-20px;opacity:.04;font-size:200px;color:var(--primary)">&#9830;</div>';
+    h += '<div style="display:flex;align-items:center;gap:16px;margin-bottom:32px">';
+    h += '<div style="width:48px;height:48px;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;border-radius:10px;font-size:24px;font-weight:900">L</div>';
+    h += '<div><div style="font-size:14px;font-weight:900;letter-spacing:.15em;text-transform:uppercase">LexisPredict Elite</div>';
+    h += '<div style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:.1em;text-transform:uppercase">W1 Capital \u00b7 Advanced Legal Operations</div></div></div>';
+    h += '<h1 style="font-size:36px;font-weight:900;letter-spacing:-.03em;line-height:1;margin:0 0 8px;text-transform:uppercase">Dossi\u00ea<br>Operacional<br><span style="color:var(--primary)">Master</span></h1>';
+    h += '<p style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:.2em;text-transform:uppercase;margin:12px 0 0">Relatorio Consolidado de Merito e Responsabilidade</p>';
+    h += '<div style="display:flex;justify-content:space-between;align-items:flex-end;border-top:2px solid var(--border);margin-top:32px;padding-top:20px">';
+    h += '<div><div style="font-size:9px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.1em">Auditado por</div>';
+    h += '<div style="font-size:16px;font-weight:900;text-transform:uppercase">' + ec(operador) + '</div></div>';
+    h += '<div style="text-align:right"><div style="font-size:20px;font-weight:900;letter-spacing:-.02em">' + now.getFullYear() + '</div>';
+    h += '<div style="font-size:8px;font-weight:800;color:var(--muted);border:1px solid var(--border);padding:2px 8px;border-radius:4px;display:inline-block">v.6.2 ELITE</div></div></div></div>';
+    h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:32px">';
+    function kpiCard(label, value, color) {
+      return '<div style="border:1px solid var(--border);border-radius:12px;padding:16px;background:var(--card)"><div style="font-size:9px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">' + label + '</div><div style="font-size:28px;font-weight:900;font-variant-numeric:tabular-nums;' + (color ? 'color:' + color : '') + '">' + value + '</div></div>';
+    }
+    h += kpiCard("Ativos em Gestao", k.ativos);
+    h += kpiCard("Atendidos Semana", atendidosSemana.length, "#3b82f6");
+    h += kpiCard("Vencidos / Hoje", k.venc + " / " + k.hoje, "#ef4444");
+    h += kpiCard("Risco Carteira", risk.score + "%", riskColor);
+    h += kpiCard("Novidades", k.nov, k.nov ? "#a855f7" : "");
+    h += kpiCard("Baixas Tribunal", k.baixa, k.baixa ? "#10b981" : "");
+    h += kpiCard("Procedentes", k.proc, "#10b981");
+    h += kpiCard("Improcedentes", k.improc, "#ef4444");
+    h += kpiCard("Cumprimento", cumpr.length, "#3b82f6");
+    h += kpiCard("Parados 60d+", par.length, par.length ? "#f97316" : "");
+    h += kpiCard("Sem Prazo", k.sem, "#94a3b8");
+    h += kpiCard("Arquivados", k.arq, "#64748b");
+    h += '</div>';
+    h += '<div style="border:1px solid var(--border);border-radius:16px;background:var(--card);padding:24px;margin-bottom:32px">';
+    h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)">Indice de Risco</div>';
+    h += '<div style="font-size:10px;font-weight:800;padding:4px 12px;border-radius:999px;background:' + riskColor + ';color:#fff;text-transform:uppercase">' + risk.label + '</div></div>';
+    h += '<div style="height:12px;background:var(--elev);border-radius:999px;overflow:hidden;margin-bottom:8px"><div style="height:100%;width:' + Math.max(4, risk.score) + '%;background:' + riskColor + ';border-radius:999px"></div></div>';
+    h += '<div style="font-size:10px;font-weight:800;color:var(--muted)">' + risk.score + '/100</div></div>';
+    h += '<div style="border:1px solid var(--border);border-radius:16px;background:var(--card);overflow:hidden;margin-bottom:32px">';
+    h += '<div style="background:var(--primary);color:#fff;padding:16px 24px;display:flex;justify-content:space-between;align-items:center">';
+    h += '<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.1em">Resumo Executivo</div>';
+    h += '<div style="font-size:9px;font-weight:800;padding:4px 12px;border-radius:999px;background:rgba(255,255,255,.2)">Risco ' + risk.label + ' \u00b7 ' + risk.score + '%</div></div>';
+    h += '<div style="padding:24px;display:grid;grid-template-columns:1fr 1fr;gap:24px">';
+    h += '<div><div style="font-size:9px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px">Leitura da Carteira</div>';
+    h += '<div style="font-size:11px;font-weight:600;line-height:1.8">';
+    h += '<div><b>' + k.venc + '</b> prazo(s) vencido(s) e <b>' + k.hoje + '</b> para hoje.</div>';
+    h += '<div><b>' + k.nov + '</b> caso(s) com novidade de andamento.</div>';
+    h += '<div><b>' + k.baixa + '</b> baixa(s) do tribunal.</div>';
+    h += '<div><b>' + par.length + '</b> processo(s) parado(s).</div></div></div>';
+    h += '<div><div style="font-size:9px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px">Plano de Acao</div>';
+    h += '<ol style="font-size:11px;font-weight:600;line-height:1.8;padding-left:16px;margin:0">';
+    recs.slice(0,6).forEach(function(r,i){h+='<li>'+ec(r)+'</li>';});
+    h += '</ol></div></div></div>';
+    if (crit.length) {
+      h += '<div style="border:1px solid var(--border);border-radius:16px;background:var(--card);overflow:hidden;margin-bottom:32px">';
+      h += '<div style="background:#1e293b;color:#fff;padding:16px 24px"><div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.1em">Fila Critica \u00b7 ' + crit.length + ' caso(s)</div></div>';
+      h += '<table style="width:100%;border-collapse:collapse;font-size:10px"><thead><tr style="background:var(--elev);border-bottom:1px solid var(--border)">';
+      ['Cliente / Protocolo','Status','Prazo','Dias','Prioridade'].forEach(function(c){h+='<th style="padding:10px 16px;text-align:left;font-size:9px;font-weight:800;text-transform:uppercase;color:var(--muted)">'+c+'</th>';});
+      h += '</tr></thead><tbody>';
+      crit.slice(0,20).forEach(function(c){var st=statusDe(c);var d=diasAte(c.proximoPrazo);var ds=d===null?'\u2014':(d<0?'VENCIDO '+Math.abs(d)+'d':d+'d');var dc=d!==null&&d<0?'#ef4444':d===0?'#3b82f6':'var(--muted)';
+        h+='<tr style="border-bottom:1px solid var(--border)"><td style="padding:10px 16px"><div style="font-weight:800;font-size:11px">'+ec(c.cliente||'\u2014')+'</div><div style="font-size:9px;color:var(--muted);font-family:monospace">'+ec(c.protocolo||'')+'</div></td>';
+        h+='<td style="padding:10px 16px">'+badge(st)+'</td><td style="padding:10px 16px;font-variant-numeric:tabular-nums;font-weight:700">'+ec(c.proximoPrazo||'\u2014')+'</td>';
+        h+='<td style="padding:10px 16px;font-weight:800;color:'+dc+'">'+ds+'</td><td style="padding:10px 16px">'+prioBadge(c)+'</td></tr>';});
+      h += '</tbody></table></div>';
+    }
+    var topChance=rows.filter(function(c){return statusDe(c)!=='Arquivado'&&c.proximoPrazo;}).sort(function(a,b){return(diasAte(a.proximoPrazo)||999)-(diasAte(b.proximoPrazo)||999);}).slice(0,10);
+    if(topChance.length){h+='<div style="border:1px solid var(--border);border-radius:16px;background:var(--card);overflow:hidden;margin-bottom:32px"><div style="background:#059669;color:#fff;padding:16px 24px"><div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.1em">Top 10: Maior Proximidade de Encerramento</div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:0">';
+      topChance.forEach(function(c){var d=diasAte(c.proximoPrazo);h+='<div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:10px;font-weight:800;text-transform:uppercase">'+ec(c.cliente||'\u2014')+'</div><div style="font-size:9px;color:var(--muted);font-family:monospace">'+ec(c.protocolo||'')+'</div></div><div style="text-align:right"><div style="font-size:18px;font-weight:900;color:#059669">'+(d===null?'\u2014':d+'d')+'</div><div style="font-size:8px;font-weight:800;color:var(--muted);text-transform:uppercase">Restante</div></div></div>';});
+      h+='</div></div>';
+    }
+    if(par.length){h+='<div style="border:1px solid var(--border);border-radius:16px;background:var(--card);overflow:hidden;margin-bottom:32px"><div style="background:#f97316;color:#fff;padding:16px 24px"><div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.1em">Processos Parados \u2265 60 Dias \u00b7 '+par.length+' caso(s)</div></div><div style="padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+      par.slice(0,12).forEach(function(c){var d=diasDesde(c.ultimoRetorno||c.data_distribuicao);h+='<div style="border:1px solid var(--border);border-radius:10px;padding:12px;display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:10px;font-weight:800;text-transform:uppercase">'+ec(c.cliente||'\u2014')+'</div><div style="font-size:9px;color:var(--muted);font-family:monospace">'+ec(c.protocolo||'')+'</div></div><div style="font-size:12px;font-weight:900;color:#f97316">'+(d===null?'sem reg.':d+'d')+'</div></div>';});
+      h+='</div></div>';
+    }
+    h+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:32px">';
+    function meritCol(title,list,color){var m='<div style="border:1px solid var(--border);border-radius:12px;background:var(--card);overflow:hidden"><div style="background:'+color+';color:#fff;padding:10px 14px;display:flex;justify-content:space-between;align-items:center"><span style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.08em">'+title+'</span><span style="font-size:9px;font-weight:800;background:rgba(255,255,255,.2);padding:2px 8px;border-radius:999px">'+list.length+'</span></div><div style="padding:12px;max-height:200px;overflow:auto">';list.slice(0,10).forEach(function(c){m+='<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:10px"><div style="font-weight:800;text-transform:uppercase">'+ec(c.cliente||'\u2014')+'</div><div style="font-size:9px;color:var(--muted);font-family:monospace">'+ec(c.protocolo||'')+'</div></div>';});if(!list.length)m+='<div style="padding:20px;text-align:center;font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:800">Nenhum caso</div>';m+='</div></div>';return m;}
+    h+=meritCol('Fase Executiva',cumpr,'#3b82f6');h+=meritCol('Procedentes',proc,'#10b981');h+=meritCol('Improcedentes',improc,'#ef4444');h+='</div>';
+    if(week.length){h+='<div style="border:1px solid var(--border);border-radius:16px;background:var(--card);overflow:hidden;margin-bottom:32px"><div style="background:var(--card);border-bottom:1px solid var(--border);padding:16px 24px"><div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.1em">Proximos 7 Dias \u00b7 '+week.length+' caso(s)</div></div><table style="width:100%;border-collapse:collapse;font-size:10px"><thead><tr style="background:var(--elev);border-bottom:1px solid var(--border)">';
+      ['Cliente','Prazo','Dias','Prioridade'].forEach(function(c){h+='<th style="padding:8px 16px;text-align:left;font-size:9px;font-weight:800;text-transform:uppercase;color:var(--muted)">'+c+'</th>';});
+      h+='</tr></thead><tbody>';sortByPriority(week).slice(0,15).forEach(function(c){var d=diasAte(c.proximoPrazo);h+='<tr style="border-bottom:1px solid var(--border)"><td style="padding:8px 16px;font-weight:700">'+ec(c.cliente||'\u2014')+'</td><td style="padding:8px 16px;font-variant-numeric:tabular-nums">'+ec(c.proximoPrazo||'\u2014')+'</td><td style="padding:8px 16px;font-weight:800;color:'+(d!==null&&d<=1?'#ef4444':'#f97316')+'">'+(d===null?'\u2014':d+'d')+'</td><td style="padding:8px 16px">'+prioBadge(c)+'</td></tr>';});
+      h+='</tbody></table></div>';
+    }
+    if(novas.length){h+='<div style="border:1px solid var(--border);border-radius:16px;background:var(--card);overflow:hidden;margin-bottom:32px"><div style="background:#a855f7;color:#fff;padding:16px 24px"><div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.1em">Novidades \u00b7 '+novas.length+' caso(s) com andamento novo / DJEN</div></div><div style="padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+      novas.slice(0,10).forEach(function(c){h+='<div style="border:1px solid var(--border);border-radius:10px;padding:12px"><div style="font-size:10px;font-weight:800;text-transform:uppercase">'+ec(c.cliente||'\u2014')+'</div><div style="font-size:9px;color:var(--muted);font-family:monospace">'+ec(c.protocolo||'')+'</div>';if(c.evento_resumo)h+='<div style="font-size:9px;color:#a855f7;margin-top:4px;font-weight:700">'+ec(c.evento_resumo)+'</div>';h+='</div>';});
+      h+='</div></div>';
+    }
+    h+='<div style="border:1px solid var(--border);border-radius:16px;background:var(--card);padding:24px;display:flex;justify-content:space-between;align-items:center;margin-top:32px"><div style="display:flex;align-items:center;gap:12px"><div style="width:36px;height:36px;border:2px solid var(--primary);border-radius:8px;display:flex;align-items:center;justify-content:center;background:var(--primary);color:#fff;font-weight:900">L</div><div><div style="font-size:9px;letter-spacing:.15em;text-transform:uppercase;font-weight:900">2026 W1 CAPITAL \u00b7 AUTHORITY SYSTEM</div><div style="font-size:8px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase">Dossi\u00ea Operacional \u00b7 Lexis Gabinete v6.2</div></div></div><div style="text-align:right"><div style="font-size:9px;font-weight:800;color:var(--muted)">'+dataStr+' \u00b7 '+horaStr+'</div><div style="font-size:8px;font-weight:700;color:var(--muted)">Gerado por '+ec(operador)+'</div></div></div>';
+    return h;
+  }
+
+  /* DEAD CODE BELOW - REMOVED */
+  if (false) {
+    t += "REMOVEME_START";
+    t += "║        DOSSIÊ OPERACIONAL · LEXIS GABINETE v6.2         ║\n";
+    t += "║        Data: " + hoje + "  ·  Operador: " + operador + "          ║\n";
+    t += "╚══════════════════════════════════════════════════════════╝\n\n";
+
+    t += "┌─────────────────────────────────────────────────────────┐\n";
+    t += "│  RESUMO EXECUTIVO                                      │\n";
+    t += "├─────────────────────────────────────────────────────────┤\n";
+    t += "│  Carteira total:     " + String(k.total).padStart(6) + "                           │\n";
+    t += "│  Ativos:             " + String(k.ativos).padStart(6) + "                           │\n";
+    t += "│  Vencidos:           " + String(k.venc).padStart(6) + "  ◄ CRÍTICO                  │\n";
+    t += "│  É hoje:             " + String(k.hoje).padStart(6) + "  ◄ URGENTE                  │\n";
+    t += "│  Atenção (≤3d):      " + String(k.aten).padStart(6) + "                           │\n";
+    t += "│  Sem prazo:          " + String(k.sem).padStart(6) + "                           │\n";
+    t += "│  Arquivados:         " + String(k.arq).padStart(6) + "                           │\n";
+    t += "│  Atendidos hoje:     " + String(k.atendidosHoje).padStart(6) + "                           │\n";
+    t += "│  Novidades (DJEN):   " + String(k.nov).padStart(6) + "                           │\n";
+    t += "│  Baixas tribunal:    " + String(k.baixa).padStart(6) + "                           │\n";
+    t += "│  Procedentes:        " + String(k.proc).padStart(6) + "                           │\n";
+    t += "│  Improcedentes:      " + String(k.improc).padStart(6) + "                           │\n";
+    t += "│  Risco global:       " + String(risk.score).padStart(3) + "/100  (" + risk.label + ")          │\n";
+    t += "└─────────────────────────────────────────────────────────┘\n\n";
+
+    // Barra de risco visual
+    var barLen = 40;
+    var filled = Math.round((risk.score / 100) * barLen);
+    var bar = "[" + "█".repeat(filled) + "░".repeat(barLen - filled) + "]";
+    t += "  RISCO: " + bar + " " + risk.score + "%\n\n";
+
+    // Fila crítica
     var crit = sortByPriority(rows.filter(function (c) {
       var st = statusDe(c); return st === "Vencido" || st === "É Hoje" || st === "Caso Crítico";
     }));
-    crit.slice(0, 40).forEach(function (c, i) {
-      var f = faixaPrioridade(pesoFila(c));
-      t += "  " + (i + 1) + ". [" + f[0].toUpperCase() + "] " + (c.cliente || "—") + " | " + (c.protocolo || "—") + " | prazo " + (c.proximoPrazo || "—") + "\n";
+    if (crit.length) {
+      t += "┌─────────────────────────────────────────────────────────┐\n";
+      t += "│  FILA CRÍTICA · " + crit.length + " caso(s)                            │\n";
+      t += "├─────────────────────────────────────────────────────────┤\n";
+      crit.slice(0, 30).forEach(function (c, i) {
+        var f = faixaPrioridade(pesoFila(c));
+        var st = statusDe(c);
+        var dias = diasAte(c.proximoPrazo);
+        var diasStr = dias === null ? "—" : (dias < 0 ? "VENCIDO " + Math.abs(dias) + "d" : dias + "d");
+        t += "│ " + String(i + 1).padStart(2) + ". " + (st === "Vencido" ? "🔴" : st === "É Hoje" ? "🔵" : "⚠️") + " " + (c.cliente || "—").substring(0, 35).padEnd(35) + " │\n";
+        t += "│     " + (c.protocolo || "—") + "  │  Prazo: " + (c.proximoPrazo || "—") + "  │  " + diasStr + "     │\n";
+        if (c.telefone) t += "│     📞 " + c.telefone + "                                        │\n";
+        if (c.observacao) t += "│     📝 " + c.observacao.substring(0, 50) + "                      │\n";
+        t += "│     ─────────────────────────────────────────────────── │\n";
+      });
+      t += "└─────────────────────────────────────────────────────────┘\n\n";
+    }
+
+    // Atenção (próximos 7 dias)
+    var week = rows.filter(function (c) {
+      var st = statusDe(c); if (st === "Arquivado") return false;
+      var d = diasAte(c.proximoPrazo); return d !== null && d >= 0 && d <= 7;
     });
-    t += "\nPARADOS ≥ 60 DIAS\n";
+    if (week.length) {
+      t += "┌─────────────────────────────────────────────────────────┐\n";
+      t += "│  PRÓXIMOS 7 DIAS · " + week.length + " caso(s)                          │\n";
+      t += "├─────────────────────────────────────────────────────────┤\n";
+      sortByPriority(week).slice(0, 15).forEach(function (c) {
+        var dias = diasAte(c.proximoPrazo);
+        t += "│  📅 " + (c.proximoPrazo || "—") + "  │  " + (c.cliente || "—").substring(0, 30).padEnd(30) + "  │  " + (dias === null ? "—" : dias + "d") + "  │\n";
+      });
+      t += "└─────────────────────────────────────────────────────────┘\n\n";
+    }
+
+    // Parados
     var par = rows.filter(function (c) {
       var st = statusDe(c); if (st === "Arquivado") return false;
       var d = diasDesde(c.ultimoRetorno || c.data_distribuicao);
       return d === null || d >= 60;
     });
-    par.slice(0, 20).forEach(function (c) {
-      t += "  • " + (c.cliente || "—") + " | " + (c.protocolo || "—") + "\n";
+    if (par.length) {
+      t += "┌─────────────────────────────────────────────────────────┐\n";
+      t += "│  ⚠ PROCESSOS PARADOS ≥ 60 DIAS · " + par.length + " caso(s)              │\n";
+      t += "├─────────────────────────────────────────────────────────┤\n";
+      par.slice(0, 15).forEach(function (c) {
+        var d = diasDesde(c.ultimoRetorno || c.data_distribuicao);
+        t += "│  🔴 " + (c.cliente || "—").substring(0, 35).padEnd(35) + " │ " + (d === null ? "sem registro" : d + " dias") + "  │\n";
+      });
+      t += "└─────────────────────────────────────────────────────────┘\n\n";
+    }
+
+    // Novidades
+    var novas = rows.filter(function (c) {
+      return (c.tem_novo_andamento || c.djen_nova_comunicacao) && statusDe(c) !== "Arquivado";
     });
-    t += "\n— Gerado localmente · W1 Capital —\n";
+    if (novas.length) {
+      t += "┌─────────────────────────────────────────────────────────┐\n";
+      t += "│  🆕 NOVIDADES (andamento novo / DJEN) · " + novas.length + " caso(s)    │\n";
+      t += "├─────────────────────────────────────────────────────────┤\n";
+      novas.slice(0, 10).forEach(function (c) {
+        t += "│  ⚡ " + (c.cliente || "—").substring(0, 35).padEnd(35) + " │\n";
+        if (c.evento_resumo) t += "│     " + c.evento_resumo.substring(0, 50) + "                        │\n";
+      });
+      t += "└─────────────────────────────────────────────────────────┘\n\n";
+    }
+
+    t += "══════════════════════════════════════════════════════════\n";
+    t += "  Gerado automaticamente por Lexis Gabinete v6.2\n";
+    t += "  W1 Capital Assessoria Financeira Ltda\n";
+    t += "  " + new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }) + "\n";
+    t += "══════════════════════════════════════════════════════════\n";
     return t;
   }
 
@@ -1619,25 +1853,31 @@
   }
   function bindDossie() {
     $("btnReport").onclick = function () {
-      $("reportOut").textContent = buildDossier();
+      $("reportOut").innerHTML = buildDossier();
       toast("Dossiê gerado");
     };
     $("btnCopyReport").onclick = function () {
-      var txt = $("reportOut").textContent || "";
+      var txt = $("reportOut").innerText || "";
       if (!txt) return toast("Gere o relatório primeiro");
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(txt).then(function () { toast("Copiado"); });
       } else { toast("Copie manualmente"); }
     };
     $("btnExportReport").onclick = function () {
-      var txt = $("reportOut").textContent || "";
-      if (!txt) return toast("Gere o relatório primeiro");
-      if (window.lexisOffline && window.lexisOffline.exportCsvFile) {
-        window.lexisOffline.exportCsvFile(txt, "dossie-operacional.txt").then(function () { toast("Arquivo salvo"); });
+      var html = $("reportOut").innerHTML || "";
+      if (!html) return toast("Gere o relatório primeiro");
+      if (window.lexisOffline && window.lexisOffline.exportPdf) {
+        toast("Gerando PDF…");
+        window.lexisOffline.exportPdf(html).then(function (r) {
+          if (r && r.ok) toast("PDF salvo: " + r.path);
+          else if (r && r.canceled) toast("Cancelado");
+          else toast("Erro: " + (r && r.error || "desconhecido"), "err-msg");
+        });
       } else {
-        var a = document.createElement("a");
-        a.href = URL.createObjectURL(new Blob([txt], { type: "text/plain" }));
-        a.download = "dossie-operacional.txt"; a.click();
+        var w = window.open("", "_blank");
+        w.document.write('<html><head><title>Dossiê</title><style>body{font-family:sans-serif;padding:20px;font-size:11px}table{width:100%;border-collapse:collapse;font-size:9px}th,td{padding:4px 8px;border-bottom:1px solid #ddd}th{background:#f5f5f5;font-weight:800;text-transform:uppercase;font-size:8px}@media print{body{padding:0}}</style></head><body>' + html + '</body></html>');
+        w.document.close();
+        setTimeout(function(){w.print();},500);
       }
     };
   }
@@ -1662,6 +1902,70 @@
       toast("Configurações salvas");
     };
     $("btnTestWebhook").onclick = testWebhook;
+  }
+  function bindCadastro() {
+    var btnSave = $("btnCadSave");
+    if (btnSave) btnSave.onclick = function () {
+      var cliente = ($("cadCliente") ? $("cadCliente").value : "").trim();
+      if (!cliente) return toast("Informe o nome do cliente", "err-msg");
+      var proto = ($("cadProtocolo") ? $("cadProtocolo").value : "").trim();
+      var id = onlyDigits(proto) || "cad_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
+      var c = {
+        id: id,
+        protocolo: proto,
+        cliente: cliente,
+        telefone: ($("cadTelefone") ? $("cadTelefone").value : "").trim(),
+        tribunal: ($("cadTribunal") ? $("cadTribunal").value : "").trim(),
+        advogado: ($("cadAdvogado") ? $("cadAdvogado").value : "").trim(),
+        escritorio: ($("cadEscritorio") ? $("cadEscritorio").value : "").trim(),
+        situacao: ($("cadSituacao") ? $("cadSituacao").value : "EM ANDAMENTO").trim() || "EM ANDAMENTO",
+        observacao: ($("cadObs") ? $("cadObs").value : "").trim(),
+        ultimoRetorno: ($("cadUltimo") ? $("cadUltimo").value : null) || null,
+        proximoPrazo: ($("cadPrazo") ? $("cadPrazo").value : null) || null,
+        statusManual: "Automatico",
+        arquivado: false,
+        origem: "cadastro"
+      };
+      rows.push(c);
+      scheduleSave();
+      renderAll();
+      toast("Processo cadastrado: " + cliente);
+      ["cadCliente","cadProtocolo","cadTelefone","cadTribunal","cadAdvogado","cadEscritorio","cadObs"].forEach(function(k){var e=$(k);if(e)e.value="";});
+      if ($("cadSituacao")) $("cadSituacao").value = "EM ANDAMENTO";
+      if ($("cadUltimo")) $("cadUltimo").value = "";
+      if ($("cadPrazo")) $("cadPrazo").value = "";
+      pushOne(c);
+    };
+    var btnClear = $("btnCadClear");
+    if (btnClear) btnClear.onclick = function () {
+      ["cadCliente","cadProtocolo","cadTelefone","cadTribunal","cadAdvogado","cadEscritorio","cadObs"].forEach(function(k){var e=$(k);if(e)e.value="";});
+      if ($("cadSituacao")) $("cadSituacao").value = "EM ANDAMENTO";
+      if ($("cadUltimo")) $("cadUltimo").value = "";
+      if ($("cadPrazo")) $("cadPrazo").value = "";
+    };
+    var btnBatch = $("btnCadBatch");
+    if (btnBatch) btnBatch.onclick = function () {
+      var txt = ($("cadBatchCsv") ? $("cadBatchCsv").value : "").trim();
+      if (!txt) return toast("Cole linhas CSV", "err-msg");
+      var lines = txt.split("\n").map(function(l){return l.trim();}).filter(Boolean);
+      var added = 0;
+      lines.forEach(function(line) {
+        var cells = line.split(",").map(function(c){return c.trim();});
+        if (!cells[0]) return;
+        var proto = cells[1] || "";
+        var id = onlyDigits(proto) || "batch_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
+        rows.push({
+          id: id, protocolo: proto, cliente: cells[0], telefone: cells[2] || "",
+          tribunal: "", advogado: "", escritorio: "",
+          situacao: cells[3] || "EM ANDAMENTO", observacao: cells[4] || "",
+          ultimoRetorno: null, proximoPrazo: null,
+          statusManual: "Automatico", arquivado: false, origem: "batch"
+        });
+        added++;
+      });
+      if (added) { scheduleSave(); renderAll(); toast(added + " processos importados"); }
+      else toast("Nenhuma linha válida", "err-msg");
+    };
   }
   function bindRows() {
     document.body.addEventListener("click", function (e) {
@@ -1732,6 +2036,7 @@
   bindDossie();
   bindNotas();
   bindConfig();
+  bindCadastro();
   bindRows();
   bindModal();
 

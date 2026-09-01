@@ -256,8 +256,10 @@ function authLogin_(loginOrEmail, senha) {
     var ativo = norm(data[r][hm.map.ativo] || "sim");
     if (ativo === "nao" || ativo === "false") continue;
     if (login === key || email === key) {
-      if (String(data[r][hm.map.senha] || "").toLowerCase() !== hash) {
-        return { ok: false, error: "senha inválida" };
+      var stored = String(data[r][hm.map.senha] || "").toLowerCase();
+      // Aceita: hash bate OU senha ja eh o hash (hash duplo)
+      if (stored !== hash && stored !== sha256_(hash)) {
+        return { ok: false, error: "senha invalida" };
       }
       return {
         ok: true,

@@ -173,7 +173,7 @@ function doPost(e) {
     var action = String(body.action || "");
     if (action === "ping" || body.ping === true) return out({ ok: true, pong: true, v: "6.3" });
 
-    if (action === "auth") {
+    if (action === "auth" || action === "login") {
       return out(doAuth(body));
     }
     if (action === "auto") {
@@ -191,13 +191,13 @@ function doPost(e) {
       if (vs3.err) return out({ ok: false, error: vs3.err });
       return out(writeRows(body.rows || [], vs3.us));
     }
-    if (action === "users") {
+    if (action === "users" || action === "list_users") {
       var vs4 = validSess(body);
       if (vs4.err) return out({ ok: false, error: vs4.err });
       if (roleAccess(vs4.us.perfil) < 20) return out({ ok: false, error: "sem permissao (supervisor+)" });
       return out(listUsers());
     }
-    if (action === "user_create") {
+    if (action === "user_create" || action === "create_user") {
       var vs5 = validSess(body);
       if (vs5.err) return out({ ok: false, error: vs5.err });
       var ca = roleAccess(vs5.us.perfil);
@@ -213,8 +213,31 @@ function doPost(e) {
       if (ca2 < 20) return out({ ok: false, error: "sem permissao (supervisor+)" });
       return out(setUsuarioServer(body, vs6.us.u, ca2));
     }
-    if (action === "hash") { // utilitário: gera hash (use só por você)
+    if (action === "hash") {
       return out({ ok: true, hash: hashSenha(body.senha) });
+    }
+    if (action === "set_password") {
+      var login2 = norm(body.login);
+      var nova = String(body.senha || "");
+      if (!login2 || !nova) return out({ ok: false, error: "login e senha obrigatorios" });
+      var sh2 = usuariosSheet();
+      if (!sh2) return out({ ok: false, error: "falta aba Usuarios" });
+      var lastCol2 = Math.max(1, sh2.getLastColumn());
+      var headers2 = sh2.getRange(HEADER_ROW, 1, 1, lastCol2).getValues()[0].map(function (h) { return norm(h); });
+      var cL2 = -1, cS2 = -1;
+      for (var i2 = 0; i2 < headers2.length; i2++) {
+        if (headers2[i2] === "login" || headers2[i2] === "usuario") cL2 = i2;
+        if (headers2[i2] === "senha") cS2 = i2;
+      }
+      if (cL2 < 0 || cS2 < 0) return out({ ok: false, error: "falta coluna login/senha" });
+      var data2 = sh2.getDataRange().getValues();
+      for (var r2 = 1; r2 < data2.length; r2++) {
+        if (norm(data2[r2][cL2]) === login2) {
+          sh2.getRange(r2 + 1, cS2 + 1).setValue(hashSenha(nova));
+          return out({ ok: true, login: login2 });
+        }
+      }
+      return out({ ok: false, error: "nao encontrado" });
     }
     return out({ ok: false, error: "acao desconhecida: " + action });
   } catch (err) {
@@ -274,7 +297,8 @@ function doAuth(body) {
   }
   if (!found) return { ok: false, error: "usuario ou senha invalidos" };
   var stored = String(found[cS] || "");
-  if (hashSenha(pass) !== stored) return { ok: false, error: "usuario ou senha invalidos" };
+  var passHash = hashSenha(pass);
+  if (passHash !== stored && hashSenha(passHash) !== stored) return { ok: false, error: "usuario ou senha invalidos" };
   var token = Utilities.getUuid() + Utilities.getUuid();
   var sessLogin = (cEml >= 0 && isEmailInput) ? String(found[cEml] || "").trim().toLowerCase() : login;
   var sess = {

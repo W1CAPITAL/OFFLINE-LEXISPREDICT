@@ -1,6 +1,6 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
-const APP_VERSION = "5.1.9";
+const APP_VERSION = "6.2";
 
 contextBridge.exposeInMainWorld("lexisOffline", {
   isElectron: true,
@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld("lexisOffline", {
   loadDb: () => ipcRenderer.invoke("lexis-db-load"),
   saveDb: (data) => ipcRenderer.invoke("lexis-db-save", data),
   exportCsvFile: (csv, name) => ipcRenderer.invoke("lexis-export-csv", csv, name || "lexis-carteira.csv"),
+  exportPdf: (html) => ipcRenderer.invoke("lexis-export-pdf", html || ""),
   aiChat: (payload) => ipcRenderer.invoke("lexis-ai-chat", payload || {}),
   secretsStatus: () => ipcRenderer.invoke("lexis-secrets-status"),
   sheetsPush: (payload) => ipcRenderer.invoke("lexis-sheets-push", payload || {}),
@@ -22,7 +23,9 @@ contextBridge.exposeInMainWorld("lexisOffline", {
   authLogout: () => ipcRenderer.invoke("lexis-auth-logout"),
   usersList: (payload) => ipcRenderer.invoke("lexis-users-list", payload || {}),
   usersCreate: (payload) => ipcRenderer.invoke("lexis-users-create", payload || {}),
+  userSetPassword: (payload) => ipcRenderer.invoke("lexis-user-set-password", payload || {}),
   authBootstrapSuperadmin: (payload) => ipcRenderer.invoke("lexis-auth-bootstrap-superadmin", payload || {}),
+  authClearDb: () => ipcRenderer.invoke("lexis-auth-clear-db"),
 });
 
 contextBridge.exposeInMainWorld("lexisDesktop", {

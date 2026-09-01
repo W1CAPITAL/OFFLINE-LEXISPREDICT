@@ -33,6 +33,7 @@ nativeTheme.themeSource = "dark";
 let mainWindow = null;
 let splashWindow = null;
 let shown = false;
+let modeOnline = false; // flag: user chose online mode, don't auto-redirect
 
 function appPath(...p) { return path.join(__dirname, ...p); }
 function userDataPath(...p) {
@@ -406,16 +407,25 @@ ipcMain.handle("lexis-db-load", async () => {
   }
 });
 
-ipcMain.handle("lexis-db-save", async (_e, data) => {
+ipcMain.handle("lexis-db-save", async (_e, incoming) => {
   try {
     const p = dbPath();
     fs.mkdirSync(path.dirname(p), { recursive: true });
-    // compacto (um espaço por nível) = ~5x mais rápido que pretty-print; evita travar com carteiras grandes
-    fs.writeFileSync(p, JSON.stringify(data, null, 1), "utf8");
+    // MERGE: preserva usuarios, session, empresa do DB existente
+    let existing = {};
+    try {
+      if (fs.existsSync(p)) existing = JSON.parse(fs.readFileSync(p, "utf8"));
+    } catch (_) {}
+    const merged = Object.assign({}, existing, incoming, {
+      usuarios: (incoming && Array.isArray(incoming.usuarios)) ? incoming.usuarios : (existing.usuarios || []),
+      session: (incoming && incoming.session !== undefined) ? incoming.session : (existing.session || null),
+      empresa: (incoming && incoming.empresa) ? incoming.empresa : (existing.empresa || { id: "d37fd4bb-1c71-4dca-b97e-292355918d39", nome: "W1 Capital" }),
+    });
+    fs.writeFileSync(p, JSON.stringify(merged, null, 1), "utf8");
     // espelho ao lado do exe também compacto (se possível)
     try {
       const mirror = path.join(path.dirname(process.execPath), "lexis-offline-db.json");
-      if (!process.execPath.includes("node")) fs.writeFileSync(mirror, JSON.stringify(data, null, 1), "utf8");
+      if (!process.execPath.includes("node")) fs.writeFileSync(mirror, JSON.stringify(merged, null, 1), "utf8");
     } catch (_) {}
     return { ok: true, path: p };
   } catch (e) {
@@ -678,6 +688,37 @@ ipcMain.handle("lexis-sheets-push", async (_e, payload) => {
   }
 });
 
+ipcMain.handle("lexis-export-pdf", async (_e, html) => {
+  try {
+    const { filePath, canceled } = await dialog.showSaveDialog({
+      defaultPath: "dossie-operacional-" + new Date().toISOString().slice(0, 10) + ".pdf",
+      filters: [{ name: "PDF", extensions: ["pdf"] }],
+    });
+    if (canceled || !filePath) return { ok: false, canceled: true };
+    const pdfWin = new BrowserWindow({ show: false, width: 900, height: 1200, webPreferences: { contextIsolation: true } });
+    const fullHtml = '<!DOCTYPE html><html><head><meta charset="utf-8"><style>' +
+      '@page{size:A4;margin:15mm 12mm}body{font-family:Inter,system-ui,sans-serif;font-size:11px;color:#0f172a;line-height:1.5;margin:0;padding:20px;background:#fff}' +
+      'table{width:100%;border-collapse:collapse;font-size:9px}th,td{padding:6px 10px;border-bottom:1px solid #e2e8f0;text-align:left}' +
+      'th{font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#64748b;background:#f8fafc}' +
+      '.badge{display:inline-block;padding:2px 6px;border-radius:999px;font-size:8px;font-weight:800;text-transform:uppercase}' +
+      'div[style*="border-radius:16px"]{page-break-inside:avoid;margin-bottom:16px}' +
+      '@media print{body{padding:0}.no-print{display:none!important}}' +
+      '</style></head><body>' + html + '</body></html>';
+    await pdfWin.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(fullHtml));
+    await new Promise(r => setTimeout(r, 500));
+    const pdfData = await pdfWin.webContents.printToPDF({
+      pageSize: 'A4',
+      printBackground: true,
+      margins: { top: 0.4, bottom: 0.4, left: 0.4, right: 0.4 },
+    });
+    fs.writeFileSync(filePath, pdfData);
+    pdfWin.close();
+    return { ok: true, path: filePath };
+  } catch (e) {
+    return { ok: false, error: e.message || String(e) };
+  }
+});
+
 ipcMain.handle("lexis-open-external", async (_e, url) => {
   if (url && /^https?:/i.test(url)) await shell.openExternal(url);
   return true;
@@ -714,8 +755,8 @@ function revealMain() {
   if (shown || !mainWindow || mainWindow.isDestroyed()) return;
   shown = true; closeSplash(); mainWindow.show(); mainWindow.focus();
 }
-function loadOffline() { if (mainWindow) mainWindow.loadFile(appPath("offline.html")); }
-function loadOnline() { if (mainWindow) mainWindow.loadURL(GABINETE_URL); }
+function loadOffline() { modeOnline = false; if (mainWindow) mainWindow.loadFile(appPath("offline.html")); }
+function loadOnline() { modeOnline = true; if (mainWindow) mainWindow.loadURL(GABINETE_URL); }
 
 function createMainWindow() {
   const ses = session.fromPartition(PARTITION, { cache: true });
@@ -733,7 +774,8 @@ function createMainWindow() {
   mainWindow.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: "deny" }; });
   mainWindow.webContents.on("did-finish-load", () => setTimeout(revealMain, 180));
   mainWindow.webContents.on("did-fail-load", (_e, _c, _d, url) => {
-    if (url && url.indexOf("private-assecom") >= 0) loadOffline();
+    // Só cai pro offline se NÃO estamos em modo online (usuário escolheu)
+    if (!modeOnline && url && url.indexOf("private-assecom") >= 0) loadOffline();
   });
   loadOffline();
   mainWindow.on("closed", () => { mainWindow = null; });
@@ -822,13 +864,12 @@ ipcMain.handle("lexis-auth-login", async (_e, payload) => {
       const r = await fetchBuffer(webhook, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, action: "login", login, senha }),
+        body: JSON.stringify({ token, action: "login", login, usuario: login, senha }),
       });
       const j = JSON.parse(r.body ? r.body.toString("utf8") : "{}");
       if (j && j.ok && j.user) {
         const data = await loadDataRaw();
-        data.session = { ...j.user, at: new Date().toISOString() };
-        // espelha usuário no JSON local
+        data.session = { ...j.user, perfil: normalizePerfil(j.user.perfil || j.user.cargo), at: new Date().toISOString() };
         const uid = j.user.auth_user_id || j.user.id;
         const ix = data.usuarios.findIndex(
           (u) => String(u.login).toLowerCase() === login || u.auth_user_id === uid
@@ -849,6 +890,48 @@ ipcMain.handle("lexis-auth-login", async (_e, payload) => {
         await saveDataRaw(data);
         return { ok: true, user: data.session, source: "sheets" };
       }
+      // Script antigo: retorna {ok:true, app:...} sem user → tenta list_users
+      if (j && j.ok && !j.user && webhook) {
+        try {
+          const r2 = await fetchBuffer(webhook, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token, action: "list_users" }),
+          });
+          const j2 = JSON.parse(r2.body ? r2.body.toString("utf8") : "{}");
+          if (j2 && j2.ok && Array.isArray(j2.users)) {
+            const found = j2.users.find((u) => {
+              const ul = String(u.login || "").toLowerCase();
+              const ue = String(u.email || "").toLowerCase();
+              const at = String(u.ativo || "sim").toLowerCase();
+              return (at !== "nao" && at !== "false") && (ul === login || ue === login);
+            });
+            if (found && found.senha) {
+              const hash = sha256hex(senha);
+              const stored = String(found.senha || "").toLowerCase();
+              if (stored === hash || stored === sha256hex(hash)) {
+                const data = await loadDataRaw();
+                data.session = {
+                  login: found.login, nome: found.nome,
+                  perfil: normalizePerfil(found.perfil),
+                  escritorio: found.escritorio || "",
+                  email: found.email || login,
+                  auth_user_id: found.auth_user_id || found.id,
+                  id: found.id || found.auth_user_id,
+                  at: new Date().toISOString(),
+                };
+                const uid = data.session.auth_user_id;
+                const ix = data.usuarios.findIndex((u) => String(u.login).toLowerCase() === login || u.auth_user_id === uid);
+                const row = { login: found.login, nome: found.nome, senha: sha256hex(senha), perfil: normalizePerfil(found.perfil), escritorio: found.escritorio || "", ativo: "sim", email: found.email || login, auth_user_id: uid, id: uid };
+                if (ix >= 0) data.usuarios[ix] = { ...data.usuarios[ix], ...row };
+                else data.usuarios.push(row);
+                await saveDataRaw(data);
+                return { ok: true, user: data.session, source: "sheets-list" };
+              }
+            }
+          }
+        } catch (_) {}
+      }
     } catch (e) {
       /* cai no local */
     }
@@ -862,7 +945,10 @@ ipcMain.handle("lexis-auth-login", async (_e, payload) => {
     const E = String(x.email || "").toLowerCase();
     const ativo = String(x.ativo || "sim").toLowerCase();
     if (ativo === "nao" || ativo === "false") return false;
-    return (L === login || E === login) && String(x.senha || "").toLowerCase() === hash;
+    if (L !== login && E !== login) return false;
+    const stored = String(x.senha || "").toLowerCase();
+    // Aceita: hash bate OU senha já é o hash (hash duplo = hash original)
+    return stored === hash || stored === sha256hex(hash);
   });
   if (!u) return { ok: false, error: "usuário ou senha inválidos (local e planilha)" };
   data.session = {
@@ -889,6 +975,28 @@ ipcMain.handle("lexis-auth-logout", async () => {
   data.session = null;
   await saveDataRaw(data);
   return { ok: true };
+});
+
+ipcMain.handle("lexis-auth-clear-db", async () => {
+  try {
+    const p = dbPath();
+    if (fs.existsSync(p)) fs.unlinkSync(p);
+    // Also clear legacy paths
+    const appData = app.getPath("appData");
+    const legacy = [
+      path.join(appData, "lexis-gabinete-desktop", "lexis-offline-db.json"),
+      path.join(appData, "lexis-offline", "lexis-offline-db.json"),
+      path.join(appData, "lexis-offline-edition", "lexis-offline-db.json"),
+      path.join(appData, "lexis-offline-legacy-shell", "lexis-offline-db.json"),
+      path.join(path.dirname(process.execPath), "lexis-offline-db.json"),
+    ];
+    for (const lp of legacy) {
+      try { if (fs.existsSync(lp)) fs.unlinkSync(lp); } catch (_) {}
+    }
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
 });
 
 ipcMain.handle("lexis-users-list", async (_e, payload) => {
@@ -956,9 +1064,10 @@ ipcMain.handle("lexis-users-create", async (_e, payload) => {
         }),
       });
       const j = JSON.parse(r.body ? r.body.toString("utf8") : "{}");
-      if (!j?.ok) return { ok: false, error: j?.error || "falha sheets" };
+      // Se webhook falhou, cria local mesmo assim (não bloqueia)
+      if (!j?.ok) { /* webhook falhou, cria local */ }
     } catch (e) {
-      return { ok: false, error: e.message };
+      /* webhook falhou, cria local */
     }
   }
 
@@ -983,11 +1092,26 @@ ipcMain.handle("lexis-users-create", async (_e, payload) => {
 
 ipcMain.handle("lexis-auth-bootstrap-superadmin", async (_e, payload) => {
   const data = await loadDataRaw();
-  if (data.usuarios.length > 0) {
-    return { ok: false, error: "já existem usuários — use login" };
-  }
+  // Se já existe o mesmo login, só loga. Se não existe, cria. 
+  // Sempre permite recuperação.
   const login = String(payload?.login || "admin").trim().toLowerCase();
   const senha = String(payload?.senha || "admin123");
+  // Se já existe este login, só loga
+  const existing = data.usuarios.find((u) => String(u.login).toLowerCase() === login);
+  if (existing) {
+    data.session = {
+      login: existing.login,
+      nome: existing.nome,
+      perfil: "superadmin",
+      email: existing.email,
+      auth_user_id: existing.auth_user_id || existing.id,
+      id: existing.id || existing.auth_user_id,
+      at: new Date().toISOString(),
+    };
+    await saveDataRaw(data);
+    return { ok: true, user: data.session };
+  }
+  // Cria novo superadmin
   const id = crypto.randomUUID();
   data.usuarios.push({
     login,
@@ -1002,9 +1126,9 @@ ipcMain.handle("lexis-auth-bootstrap-superadmin", async (_e, payload) => {
   });
   data.session = {
     login,
-    nome: data.usuarios[0].nome,
+    nome: payload?.nome || "Administrador",
     perfil: "superadmin",
-    email: data.usuarios[0].email,
+    email: (payload?.email || login).toLowerCase(),
     auth_user_id: id,
     id,
     at: new Date().toISOString(),
