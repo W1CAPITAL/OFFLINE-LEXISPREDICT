@@ -455,7 +455,7 @@ ipcMain.handle("lexis-ai-chat", async (_e, payload) => {
 
   try {
     if (provider === "ollama") {
-      let model = (payload && payload.model) || "qwen2.5:0.5b";
+      let model = (payload && payload.model) || "qwen3:0.6b";
       // 1) Descobre modelos instalados (evita 404 por nome errado)
       try {
         const tags = await fetchBuffer("http://127.0.0.1:11434/api/tags", {
@@ -467,15 +467,16 @@ ipcMain.handle("lexis-ai-chat", async (_e, payload) => {
           const names = (tj.models || []).map((m) => m.name || m.model).filter(Boolean);
           if (names.length) {
             if (!names.includes(model)) {
-              const prefer = names.find((n) => /qwen2\.5:0\.5b/i.test(n))
-                || names.find((n) => /qwen|smollm|tinyllama|phi|gemma/i.test(n))
+              const prefer = names.find((n) => /qwen3:0\.6b/i.test(n))
+                || names.find((n) => /lfm2\.5-350m|gemma3:270m/i.test(n))
+                 || names.find((n) => /qwen|smollm|tinyllama|phi|gemma/i.test(n))
                 || names[0];
               model = prefer;
             }
           } else {
             return {
               ok: false,
-              error: "Ollama rodando, mas sem modelos. Rode: ollama pull qwen2.5:0.5b",
+              error: "Ollama rodando, mas sem modelos. Rode: ollama pull qwen3:0.6b",
             };
           }
         }
@@ -519,13 +520,17 @@ ipcMain.handle("lexis-ai-chat", async (_e, payload) => {
             r.status +
             " (modelo: " +
             model +
-            "). Abra o app Ollama, rode 2-INSTALAR-OLLAMA-IA.bat e: ollama pull qwen2.5:0.5b. " +
+            "). Abra o app Ollama, rode 2-INSTALAR-OLLAMA-IA.bat e: ollama pull qwen3:0.6b. " +
             bodyHint,
         };
       }
       const json = JSON.parse(r.body.toString("utf8"));
       const text = (json.message && json.message.content) || json.response || "";
       return { ok: true, text, provider: "ollama", model };
+    }
+
+    if (provider !== 'ollama' && process.env.LEXIS_OFFLINE_EXTERNAL_AI_ENABLED !== '1') {
+      return { ok:false, error:'IA externa desabilitada. Use Ollama local ou habilite LEXIS_OFFLINE_EXTERNAL_AI_ENABLED=1 explicitamente.' };
     }
 
     if (provider === "openrouter") {
@@ -633,7 +638,7 @@ ipcMain.handle("lexis-ai-chat", async (_e, payload) => {
   } catch (e) {
     const msg = e && e.message ? e.message : String(e);
     if (/ECONNREFUSED/i.test(msg)) {
-      return { ok: false, error: "Ollama não está rodando em 127.0.0.1:11434. Instale, abra o Ollama e rode: ollama pull qwen2.5:0.5b" };
+      return { ok: false, error: "Ollama não está rodando em 127.0.0.1:11434. Instale, abra o Ollama e rode: ollama pull qwen3:0.6b" };
     }
     return { ok: false, error: msg };
   }
