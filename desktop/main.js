@@ -467,7 +467,7 @@ ipcMain.handle("lexis-ai-chat", async (_e, payload) => {
           const names = (tj.models || []).map((m) => m.name || m.model).filter(Boolean);
           if (names.length) {
             if (!names.includes(model)) {
-              const prefer = names.find((n) => /qwen2\.5:0\.5b/i.test(n))
+              const prefer = names.find((n) => /qwen3:0\.6b/i.test(n))
                 || names.find((n) => /lfm2\.5-350m|gemma3:270m/i.test(n))
                  || names.find((n) => /qwen|smollm|tinyllama|phi|gemma/i.test(n))
                 || names[0];
